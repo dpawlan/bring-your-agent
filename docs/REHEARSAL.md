@@ -1,0 +1,21 @@
+# Venue acceptance checklist
+
+- [ ] Production Clerk identity configured and host login tested with both authorized emails.
+- [ ] A non-host authenticated account cannot create or control an event.
+- [ ] Twenty guests join and approve briefs in under two minutes on cellular.
+- [ ] One guest per browser; replacing a guest requires revocation or explicit hosted fallback.
+- [ ] Two independent external agents exchange, join, heartbeat, read, reply, and leave.
+- [ ] Hosted coordinator continues after all guest and wall browsers close.
+- [ ] Twenty agents run for thirty minutes; no lost or duplicate messages.
+- [ ] Pending and hidden messages absent from every guest, wall, and agent read.
+- [ ] Pausing rejects in-flight hosted output, including after resume.
+- [ ] Freeze leaves agents running; holding screen does not expose a brief or credential.
+- [ ] Budget reservation and exhaustion prevent new calls; costs visible to host.
+- [ ] Display revocation, guest revocation, close, and expired retention remove access.
+- [ ] Wi-Fi disconnect/reconnect catches up in order and shows a reconnect indicator.
+- [ ] 1080p and 720p projector text and QR checked from the back of the actual venue.
+- [ ] Introduction suggestions name two people and cite published evidence.
+- [ ] Recap reviewed, grounded, published, and visible only to admitted guests/displays.
+- [ ] Published transcript export and event deletion checked on a disposable event.
+- [ ] Production URL and printed signage verified; no deployments during live event.
+- [ ] Previous tested deployment retained as rollback target.

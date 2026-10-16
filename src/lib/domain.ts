@@ -1,0 +1,364 @@
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { z } from "zod";
+export const briefSchema = z.object({
+  human: z.string().trim().min(1).max(60),
+  agent: z.string().trim().min(1).max(60),
+  building: z.string().trim().min(1).max(500),
+  ask: z.string().trim().min(1).max(300),
+  offer: z.string().trim().min(1).max(300),
+  interests: z.string().max(300).default(""),
+  mode: z.enum(["hosted", "external"]),
+  consent: z.literal(true),
+});
+export type Brief = z.infer<typeof briefSchema>;
+export type Participant = {
+  id: string;
+  brief: Brief;
+  status: "pending" | "admitted" | "revoked";
+  guestHash: string;
+  pairHash?: string;
+  pairExpires?: number;
+  agentHash?: string;
+  joined: boolean;
+  eveSession?: string;
+  lastActivity: number;
+  lastPost: number;
+  posts: number;
+  lastTurn: number;
+};
+export type Message = {
+  id: string;
+  cursor: number;
+  participantId: string;
+  agent: string;
+  human: string;
+  text: string;
+  replyTo?: string;
+  createdAt: number;
+  status: "pending" | "published" | "hidden";
+  clientId: string;
+  host?: boolean;
+};
+export type Suggestion = {
+  id: string;
+  people: string[];
+  reason: string;
+  messageIds: string[];
+  names?: string[];
+};
+export type EventState = {
+  slug: string;
+  name: string;
+  owner: string;
+  status: "waiting" | "active" | "closed";
+  paused: boolean;
+  generationEnabled: boolean;
+  epoch: number;
+  moderation: "reviewed" | "live";
+  entryHash?: string;
+  admission: "approval" | "code";
+  createdAt: number;
+  deleteAt: number;
+  round: string;
+  roundEnd: number;
+  prompt: string;
+  wall: {
+    frozen: boolean;
+    freezeCursor: number;
+    holding: boolean;
+    size: number;
+    theme: "dark" | "light";
+    pinned?: string;
+  };
+  displays: { hash: string; expires: number }[];
+  participants: Participant[];
+  messages: Message[];
+  suggestions: Suggestion[];
+  suggestionDrafts: Suggestion[];
+  recapDraft: string;
+  recap: string;
+  budget: number;
+  spent: number;
+  reserved: number;
+  concurrency: number;
+  reservations: {
+    id: string;
+    participantId: string;
+    amount: number;
+    epoch: number;
+    settled: boolean;
+  }[];
+  audit: { at: number; action: string; actor: string }[];
+  cursor: number;
+  coordinator?: string;
+};
+export class AppError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public retryAfter?: number,
+  ) {
+    super(message);
+  }
+}
+export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
+export const secret = () => randomBytes(32).toString("base64url");
+export function createEvent(
+  slug: string,
+  name: string,
+  owner: string,
+): EventState {
+  return {
+    slug,
+    name,
+    owner,
+    status: "waiting",
+    paused: true,
+    generationEnabled: false,
+    epoch: 0,
+    moderation: "reviewed",
+    admission: "approval",
+    createdAt: Date.now(),
+    deleteAt: Date.now() + 7 * 86400000,
+    round: "Introductions",
+    roundEnd: 0,
+    prompt: "What are you building, and what could someone here help you with?",
+    wall: {
+      frozen: false,
+      freezeCursor: 0,
+      holding: false,
+      size: 36,
+      theme: "dark",
+    },
+    displays: [],
+    participants: [],
+    messages: [],
+    suggestions: [],
+    suggestionDrafts: [],
+    recapDraft: "",
+    recap: "",
+    budget: 5,
+    spent: 0,
+    reserved: 0,
+    concurrency: 1,
+    reservations: [],
+    audit: [],
+    cursor: 0,
+  };
+}
+export function participant(
+  e: EventState,
+  token: string,
+  kind: "guest" | "agent",
+) {
+  const h = hash(token);
+  const p = e.participants.find(
+    (p) => (kind === "guest" ? p.guestHash : p.agentHash) === h,
+  );
+  if (!p || p.status === "revoked")
+    throw new AppError(401, "Session expired or revoked.");
+  if (kind === "agent" && (p.status !== "admitted" || e.status === "closed"))
+    throw new AppError(403, "Agent access is inactive.");
+  return p;
+}
+export function admit(e: EventState, p: Participant) {
+  if (e.participants.filter((p) => p.status === "admitted").length >= 20)
+    throw new AppError(409, "The room is full (20 agents).");
+  p.status = "admitted";
+}
+export function onboard(e: EventState, input: unknown, code?: string) {
+  if (e.status === "closed") throw new AppError(409, "This event has closed.");
+  if (e.participants.filter((p) => p.status !== "revoked").length >= 100)
+    throw new AppError(429, "Registration is full. Ask the host.");
+  const brief = briefSchema.parse(input);
+  if (
+    e.admission === "code" &&
+    (!e.entryHash || hash(code || "") !== e.entryHash)
+  )
+    throw new AppError(403, "Incorrect event entry code.");
+  const token = secret();
+  const p: Participant = {
+    id: randomUUID(),
+    brief,
+    status: "pending",
+    guestHash: hash(token),
+    joined: brief.mode === "hosted",
+    lastActivity: Date.now(),
+    lastPost: 0,
+    posts: 0,
+    lastTurn: 0,
+  };
+  if (e.admission === "code") admit(e, p);
+  e.participants.push(p);
+  return { p, token };
+}
+export function pair(e: EventState, p: Participant) {
+  if (
+    p.status !== "admitted" ||
+    p.brief.mode !== "external" ||
+    e.status === "closed"
+  )
+    throw new AppError(403, "Admission is required before pairing.");
+  const code = secret();
+  p.pairHash = hash(code);
+  p.pairExpires = Date.now() + 10 * 60000;
+  return code;
+}
+export function exchange(e: EventState, code: string) {
+  const p = e.participants.find((p) => p.pairHash === hash(code));
+  if (
+    !p ||
+    p.status !== "admitted" ||
+    !p.pairExpires ||
+    p.pairExpires < Date.now() ||
+    e.status === "closed"
+  )
+    throw new AppError(401, "Pairing code expired or already used.");
+  const token = secret();
+  p.pairHash = undefined;
+  p.agentHash = hash(token);
+  return token;
+}
+export function post(
+  e: EventState,
+  p: Participant,
+  input: unknown,
+  epoch?: number,
+) {
+  const data = z
+    .object({
+      text: z.string().trim().min(1).max(500),
+      clientId: z.string().min(8).max(120),
+      replyTo: z.string().optional(),
+    })
+    .parse(input);
+  if (p.status !== "admitted" || !p.joined)
+    throw new AppError(403, "Agent is not admitted and joined.");
+  const duplicate = e.messages.find(
+    (m) => m.participantId === p.id && m.clientId === data.clientId,
+  );
+  if (duplicate) return duplicate;
+  if (
+    e.status !== "active" ||
+    e.paused ||
+    (epoch !== undefined && epoch !== e.epoch)
+  )
+    throw new AppError(
+      409,
+      "Posting is paused or this turn was cancelled.",
+      20,
+    );
+  if (p.posts >= 20) throw new AppError(429, "Event post limit reached.");
+  const wait = 20 - Math.floor((Date.now() - p.lastPost) / 1000);
+  if (wait > 0)
+    throw new AppError(429, "Please wait before posting again.", wait);
+  if (
+    data.replyTo &&
+    !e.messages.some((m) => m.id === data.replyTo && m.status === "published")
+  )
+    throw new AppError(
+      400,
+      "Reply target is not a published message in this event.",
+    );
+  const m: Message = {
+    id: randomUUID(),
+    cursor: ++e.cursor,
+    participantId: p.id,
+    agent: p.brief.agent,
+    human: p.brief.human,
+    text: data.text,
+    replyTo: data.replyTo,
+    createdAt: Date.now(),
+    status: e.moderation === "reviewed" ? "pending" : "published",
+    clientId: data.clientId,
+  };
+  e.messages.push(m);
+  p.posts++;
+  p.lastPost = p.lastActivity = Date.now();
+  return m;
+}
+export function visibleMessages(e: EventState, after = 0, wall = false) {
+  return e.messages
+    .filter(
+      (m) =>
+        m.status === "published" &&
+        m.cursor > after &&
+        (!wall || !e.wall.frozen || m.cursor <= e.wall.freezeCursor),
+    )
+    .map((m) => ({
+      ...m,
+      replyTo: e.messages.some(
+        (r) => r.id === m.replyTo && r.status === "published",
+      )
+        ? m.replyTo
+        : undefined,
+    }));
+}
+export function publicState(e: EventState) {
+  return {
+    slug: e.slug,
+    name: e.name,
+    status: e.status,
+    paused: e.paused,
+    round: e.round,
+    roundEnd: e.roundEnd,
+    prompt: e.prompt,
+    wall: e.wall,
+    agentCount: e.participants.filter((p) => p.status === "admitted").length,
+    retentionDays: Math.ceil((e.deleteAt - e.createdAt) / 86400000),
+    deleteAt: e.deleteAt,
+    admission: e.admission,
+  };
+}
+export function reserveTurn(e: EventState, id: string) {
+  const existing = e.reservations.find((r) => r.id === id);
+  if (existing) return existing.settled ? null : existing;
+  if (
+    e.status !== "active" ||
+    e.paused ||
+    !e.generationEnabled ||
+    e.reservations.filter((r) => !r.settled).length >= e.concurrency
+  )
+    return null;
+  const amount = 0.05;
+  if (e.spent + e.reserved + amount > e.budget) return null;
+  const p = e.participants
+    .filter(
+      (p) =>
+        p.status === "admitted" &&
+        p.brief.mode === "hosted" &&
+        p.posts < 20 &&
+        Date.now() - p.lastPost >= 20000,
+    )
+    .sort((a, b) => a.lastTurn - b.lastTurn)[0];
+  if (!p) return null;
+  p.lastTurn = p.lastActivity = Date.now();
+  const r = { id, participantId: p.id, amount, epoch: e.epoch, settled: false };
+  e.reserved += amount;
+  e.reservations.push(r);
+  return r;
+}
+export function settle(e: EventState, id: string, cost: number) {
+  const r = e.reservations.find((r) => r.id === id);
+  if (!r || r.settled) return;
+  e.reserved = Math.max(0, e.reserved - r.amount);
+  e.spent += cost;
+  r.settled = true;
+}
+export function groundedSuggestions(e: EventState) {
+  return e.suggestions
+    .map((s) => ({
+      ...s,
+      names: s.people.map(
+        (id) =>
+          e.participants.find((p) => p.id === id)?.brief.human || "Attendee",
+      ),
+    }))
+    .filter(
+      (s) =>
+        s.messageIds.length > 0 &&
+        s.messageIds.every((id) =>
+          e.messages.some((m) => m.id === id && m.status === "published"),
+        ),
+    );
+}
