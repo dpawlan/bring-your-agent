@@ -1205,3 +1205,53 @@ fieldset {
   overflow-wrap: anywhere;
   margin-bottom: 12px;
 }
+.join-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  margin-bottom: 18px;
+}
+.join-controls p {
+  font-size: 12px;
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+.join-address {
+  display: block;
+  overflow-wrap: anywhere;
+  font-family: monospace;
+  font-size: 13px;
+  margin: 12px 0;
+}
+.qr-panel .join-help {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 14px;
+}
+.hosting-guide {
+  max-width: 850px;
+}
+.hosting-guide h2 {
+  margin-top: 14px;
+}
+.hosting-guide li {
+  line-height: 1.7;
+  padding: 7px 0;
+}
+.wall .qr-panel .join-help {
+  font-size: 15px;
+}
+.wall .join-address {
+  font-size: 18px;
+}
+@media (max-width: 600px) {
+  .join-controls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

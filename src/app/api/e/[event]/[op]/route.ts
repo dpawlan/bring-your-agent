@@ -82,9 +82,20 @@ export async function GET(req: Request, ctx: Context) {
       if (!Number.isSafeInteger(n) || n < 0)
         throw new AppError(400, "Invalid cursor.");
       return Response.json({
-        messages: visibleMessages(e, n, role === "display"),
+        messages: visibleMessages(
+          e,
+          n,
+          role === "display" ||
+            new URL(req.url).searchParams.get("view") === "wall",
+        ),
         cursor: e.cursor,
-        visibleIds: visibleMessages(e, 0, role === "display").map((m) => m.id),
+        visibleIds: visibleMessages(
+          e,
+          0,
+          role === "display" ||
+            new URL(req.url).searchParams.get("view") === "wall",
+        ).map((m) => m.id),
+        canManage: role === "host",
         state: publicState(e),
         recap: e.recap,
       });
@@ -298,6 +309,9 @@ export async function POST(req: Request, ctx: Context) {
             e.generationEnabled = Boolean(body.value);
             e.epoch++;
             break;
+          case "join-link":
+            e.wall.showJoinLink = z.boolean().parse(body.value);
+            break;
           case "freeze":
             e.wall.frozen = Boolean(body.value);
             e.wall.freezeCursor = e.cursor;
@@ -354,13 +368,6 @@ export async function POST(req: Request, ctx: Context) {
             break;
           case "moderation":
             e.moderation = z.enum(["reviewed", "live"]).parse(body.value);
-            break;
-          case "budget":
-            e.budget = z
-              .number()
-              .min(e.spent + e.reserved)
-              .max(100)
-              .parse(body.value);
             break;
           case "entry":
             e.admission = body.value === "code" ? "code" : "approval";

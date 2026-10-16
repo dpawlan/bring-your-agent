@@ -63,6 +63,7 @@ export type EventState = {
   roundEnd: number;
   prompt: string;
   wall: {
+    showJoinLink?: boolean;
     frozen: boolean;
     freezeCursor: number;
     holding: boolean;
@@ -124,6 +125,7 @@ export function createEvent(
     roundEnd: 0,
     prompt: "What are you building, and what could someone here help you with?",
     wall: {
+      showJoinLink: true,
       frozen: false,
       freezeCursor: 0,
       holding: false,

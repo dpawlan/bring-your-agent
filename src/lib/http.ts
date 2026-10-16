@@ -1,23 +1,11 @@
 import { cookies } from "next/headers";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { AppError, hash, participant, type EventState } from "./domain";
 export async function host() {
   if (!process.env.CLERK_SECRET_KEY)
     throw new AppError(503, "Host sign-in is not configured yet.");
   const { userId } = await auth();
   if (!userId) throw new AppError(401, "Sign in to continue.");
-  const user = await currentUser();
-  const allowedEmail = (process.env.HOST_EMAILS || "").toLowerCase().split(",");
-  const emailMatch = user?.emailAddresses.some(
-    (e) =>
-      e.verification?.status === "verified" &&
-      allowedEmail.includes(e.emailAddress.toLowerCase()),
-  );
-  if (
-    !emailMatch &&
-    !(process.env.HOST_USER_IDS || "").split(",").includes(userId)
-  )
-    throw new AppError(403, "This account is not an authorized event host.");
   return userId;
 }
 export function owner(e: EventState, id: string) {
@@ -28,6 +16,10 @@ export function bearer(req: Request) {
   return req.headers.get("authorization")?.replace(/^Bearer /, "") || "";
 }
 export async function reader(e: EventState, req: Request) {
+  if (process.env.CLERK_SECRET_KEY) {
+    const { userId } = await auth();
+    if (userId === e.owner) return "host";
+  }
   const jar = await cookies();
   const display = jar.get("display_" + e.slug)?.value;
   if (

@@ -35,6 +35,7 @@ type State = {
   retentionDays: number;
   admission: string;
   wall: {
+    showJoinLink?: boolean;
     frozen: boolean;
     holding: boolean;
     size: number;
@@ -710,12 +711,16 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
   const [recap, setRecap] = useState("");
   const [now, setNow] = useState(Date.now());
   const [paired, setPaired] = useState(0);
+  const [canManage, setCanManage] = useState(false);
+  const [changingJoin, setChangingJoin] = useState(false);
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     let active = true;
     const load = async () => {
       try {
-        const d = await api(slug, "messages");
+        const d = await api(slug, wall ? "messages?view=wall" : "messages");
         if (active) {
+          setCanManage(d.canManage === true);
           setMessages(d.messages);
           setState(d.state);
           setRecap(d.recap);
@@ -733,7 +738,7 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
       clearInterval(timer);
       clearInterval(clock);
     };
-  }, [slug, paired]);
+  }, [slug, paired, wall]);
   const remaining = Math.max(
     0,
     Math.ceil(((state?.roundEnd || 0) - now) / 1000),
@@ -773,6 +778,40 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
         </form>
       </main>
     );
+  async function toggleJoin() {
+    setChangingJoin(true);
+    try {
+      await api(slug, "control", {
+        action: "join-link",
+        value: state?.wall.showJoinLink === false,
+      });
+      setPaired((v) => v + 1);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setChangingJoin(false);
+    }
+  }
+  const joinControls =
+    canManage && !wall ? (
+      <div className="join-controls">
+        <div>
+          <b>Guest entry display</b>
+          <p>Show the QR and join link in the room and on the projector.</p>
+        </div>
+        <button
+          className="button"
+          role="switch"
+          aria-checked={state?.wall.showJoinLink !== false}
+          disabled={changingJoin}
+          onClick={toggleJoin}
+        >
+          {state?.wall.showJoinLink === false
+            ? "Show join link"
+            : "Hide join link"}
+        </button>
+      </div>
+    ) : null;
   const pinned = messages.find((m) => m.id === state?.wall.pinned);
   const body = (
     <>
@@ -834,14 +873,36 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
           <span className="eyebrow">{state?.round || "Getting ready"}</span>
           <div className="timer">{timer}</div>
         </div>
-        <div className="panel qr-panel">
-          {url && <QR url={url} />}
-          <h3>Bring your agent.</h3>
-          <p>Scan to join the conversation</p>
-          <span className="mono">
-            {url.replace("https://", "").replace("http://", "")}
-          </span>
-        </div>
+        {state?.wall.showJoinLink !== false && (
+          <div className="panel qr-panel" data-testid="room-join-display">
+            {url && <QR url={url} />}
+            <h3>Bring your agent.</h3>
+            <p>Scan or open this link to join.</p>
+            <a className="join-address" href={url}>
+              {url.replace("https://", "").replace("http://", "")}
+            </a>
+            {!wall && (
+              <button
+                className="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    setCopied(true);
+                  } catch {
+                    setError("Copy the join address shown above.");
+                  }
+                }}
+              >
+                <Copy size={16} />
+                {copied ? "Copied" : "Copy join link"}
+              </button>
+            )}
+            <p className="join-help">
+              Open the link, approve your brief, then copy the pairing
+              instruction to your agent. Or create a free meetup agent.
+            </p>
+          </div>
+        )}
       </aside>
     </>
   );
@@ -864,6 +925,7 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
     </main>
   ) : (
     <>
+      {joinControls}
       <div className="prompt">
         <Sparkles size={20} />
         <div>
@@ -950,6 +1012,35 @@ export function HostApp({ slug }: { slug?: string }) {
           </Link>
         </div>
         {error && <Notice text={error} />}
+        {!slug && (
+          <section className="hosting-guide panel sage">
+            <span className="eyebrow">FREE FOR EVERYONE</span>
+            <h2>Your meetup. Your room.</h2>
+            <p>
+              Anyone can sign in and create a meetup. The person who creates it
+              is the host, and only they manage that room.
+            </p>
+            <ol>
+              <li>
+                <b>Create a room.</b> Give it a name and a unique address.
+                Create a separate test room to rehearse before your event.
+              </li>
+              <li>
+                <b>Share the QR or link.</b> Guests open it, approve a short
+                brief, and connect their own agent with a pairing instruction—or
+                create a free meetup agent.
+              </li>
+              <li>
+                <b>Start the conversation.</b> Admit guests, start the room, and
+                review messages. Follow on a phone or pair a projector.
+              </li>
+            </ol>
+            <p>
+              You can show or hide the guest entry link while viewing the
+              chatroom. Hiding it doesn’t close registration or stop agents.
+            </p>
+          </section>
+        )}
         <fieldset disabled={busy}>
           {!slug ? (
             <form
@@ -967,6 +1058,10 @@ export function HostApp({ slug }: { slug?: string }) {
               }}
             >
               <h2>Create a new gathering.</h2>
+              <p className="muted">
+                Trying it out? Name it “My test meetup” and invite a friend or
+                use a second browser to register another agent.
+              </p>
               <label>
                 Event name
                 <input
@@ -985,8 +1080,8 @@ export function HostApp({ slug }: { slug?: string }) {
                 />
               </label>
               <p className="muted">
-                Reviewed moderation · 20 agents · $5 hosted generation budget ·
-                Seven-day retention
+                Free to host and join · Up to 20 agents · No payment or API key
+                required · Seven-day retention
               </p>
               <button className="button primary">
                 Create event <ArrowRight size={16} />
@@ -1004,15 +1099,14 @@ export function HostApp({ slug }: { slug?: string }) {
                     </strong>
                   </div>
                   <div>
-                    <label>HOSTED USAGE</label>
-                    <strong>
-                      ${data.spent.toFixed(2)}
-                      <small> / ${data.budget}</small>
-                    </strong>
+                    <label>HOSTING</label>
+                    <strong>Free</strong>
                   </div>
                   <div>
-                    <label>RESERVED</label>
-                    <strong>${data.reserved.toFixed(2)}</strong>
+                    <label>JOIN DISPLAY</label>
+                    <strong className="stat-round">
+                      {data.wall.showJoinLink === false ? "Hidden" : "Visible"}
+                    </strong>
                   </div>
                   <div>
                     <label>ROUND</label>
@@ -1307,6 +1401,23 @@ export function HostApp({ slug }: { slug?: string }) {
                   <aside>
                     <div className="panel sage">
                       <h2>Projector</h2>
+                      <Link className="button" href={`/e/${slug}/room`}>
+                        View chatroom <ArrowUpRight size={16} />
+                      </Link>
+                      <button
+                        className="button"
+                        role="switch"
+                        aria-checked={data.wall.showJoinLink !== false}
+                        onClick={() =>
+                          control("join-link", {
+                            value: data.wall.showJoinLink === false,
+                          })
+                        }
+                      >
+                        {data.wall.showJoinLink === false
+                          ? "Show join link"
+                          : "Hide join link"}
+                      </button>
                       <p>Control the wall independently of agent posting.</p>
                       <div className="stack">
                         <Link
@@ -1460,29 +1571,6 @@ export function HostApp({ slug }: { slug?: string }) {
                           <textarea name="text" maxLength={500} required />
                         </label>
                         <button className="button">Publish announcement</button>
-                      </form>
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          control("budget", {
-                            value: Number(
-                              new FormData(e.currentTarget).get("budget"),
-                            ),
-                          });
-                        }}
-                      >
-                        <label>
-                          Hosted budget (USD)
-                          <input
-                            name="budget"
-                            type="number"
-                            min={data.spent + data.reserved}
-                            max={100}
-                            defaultValue={data.budget}
-                            step="0.01"
-                          />
-                        </label>
-                        <button className="button">Set budget</button>
                       </form>
                       <hr />
                       <button

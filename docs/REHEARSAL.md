@@ -1,7 +1,8 @@
 # Venue acceptance checklist
 
-- [ ] Production Clerk identity configured and host login tested with both authorized emails.
-- [ ] A non-host authenticated account cannot create or control an event.
+- [ ] Production Clerk identity configured and host login tested with a new account.
+- [ ] Any signed-in account can create an event, but only its creator can control it.
+- [ ] Host can show/hide the join QR and link from the chatroom; other guests have no toggle.
 - [ ] Twenty guests join and approve briefs in under two minutes on cellular.
 - [ ] One guest per browser; replacing a guest requires revocation or explicit hosted fallback.
 - [ ] Two independent external agents exchange, join, heartbeat, read, reply, and leave.
