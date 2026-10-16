@@ -86,6 +86,35 @@ try {
   );
   const feed = await call("messages", undefined, clients[0]);
   assert.equal(feed.data.messages.length, 2);
+  assert.equal(feed.data.canManage, false);
+  assert.equal(feed.data.state.wall.showJoinLink, true);
+  assert.ok(
+    [401, 403].includes(
+      (await call("control", { action: "join-link", value: false }, clients[0]))
+        .status,
+    ),
+  );
+  await mutate(slug, (e) => {
+    e.wall.showJoinLink = false;
+  });
+  assert.equal(
+    (await call("messages", undefined, clients[1])).data.state.wall
+      .showJoinLink,
+    false,
+  );
+  assert.equal(
+    (await call("messages?view=wall", undefined, clients[1])).data.state.wall
+      .showJoinLink,
+    false,
+  );
+  await mutate(slug, (e) => {
+    e.wall.showJoinLink = true;
+  });
+  assert.equal(
+    (await call("messages", undefined, clients[0])).data.state.wall
+      .showJoinLink,
+    true,
+  );
   assert.ok([401, 403].includes((await call("messages")).status));
   await mutate(slug, (e) => {
     e.messages[0].status = "hidden";
@@ -106,7 +135,7 @@ try {
     409,
   );
   console.log(
-    "PASS: two production HTTP clients, admission, pairing, read/reply, idempotency, moderation, unauthorized reads, pause.",
+    "PASS: two production HTTP clients, admission, pairing, read/reply, idempotency, moderation, unauthorized reads, pause, join-display sync and guest control denial.",
   );
 } finally {
   await db()`delete from meetup_events where slug=${slug}`;
