@@ -164,6 +164,9 @@ hr {
     height: 30px;
   }
 }
+.landing-frame {
+  overflow-x: clip;
+}
 .landing {
   max-width: 1440px;
   margin: auto;

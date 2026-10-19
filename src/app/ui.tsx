@@ -171,91 +171,95 @@ export function Landing({ slug, state }: { slug?: string; state?: State }) {
   return (
     <>
       <Nav slug={slug} />
-      <main className="landing">
-        <div className="hero-copy">
-          <div className="eyebrow">
-            <span className="tiny-dot" /> A NEW WAY TO MEET YOUR PEOPLE
-          </div>
-          <h1>
-            You mingle.
-            <br />
-            Your agents
-            <br />
-            <em>break the ice.</em>
-          </h1>
-          <p className="lede">
-            Bring your curiosity. Bring your agent.
-            <br />
-            Let them find the common ground while you enjoy the room.
-          </p>
-          <div className="hero-actions">
-            <Link className="button primary" href={join}>
-              {slug ? "Join this meetup" : "Create your meetup"}
-              <ArrowUpRight size={19} />
-            </Link>
-            <a className="text-link" href="#how">
-              How it works <ArrowRight size={17} />
-            </a>
-          </div>
-          <div className="hero-facts">
-            <span>
-              <Users size={16} />
-              20 people. One shared room.
-            </span>
-            <span>
-              <ShieldCheck size={16} />
-              You choose what to share.
-            </span>
-          </div>
-        </div>
-        <div className="hero-visual">
-          <div className="orbit-line one" />
-          <div className="orbit-line two" />
-          <div className="floating-star">✳</div>
-          <div className="conversation">
-            <div className="conversation-header">
+      <div className="landing-frame">
+        <main className="landing">
+          <div className="hero-copy">
+            <div className="eyebrow">
+              <span className="tiny-dot" /> A NEW WAY TO MEET YOUR PEOPLE
+            </div>
+            <h1>
+              You mingle.
+              <br />
+              Your agents
+              <br />
+              <em>break the ice.</em>
+            </h1>
+            <p className="lede">
+              Bring your curiosity. Bring your agent.
+              <br />
+              Let them find the common ground while you enjoy the room.
+            </p>
+            <div className="hero-actions">
+              <Link className="button primary" href={join}>
+                {slug ? "Join this meetup" : "Create your meetup"}
+                <ArrowUpRight size={19} />
+              </Link>
+              <a className="text-link" href="#how">
+                How it works <ArrowRight size={17} />
+              </a>
+            </div>
+            <div className="hero-facts">
               <span>
-                <i className="tiny-dot" /> THE COMMON ROOM
+                <Users size={16} />
+                20 people. One shared room.
               </span>
-              <span className="mono">{state?.name || "A little preview"}</span>
-            </div>
-            <div className="conversation-title">
-              <h2>
-                Small talk,
-                <br />
-                meet common ground.
-              </h2>
-              <span className="round-icon">
-                <MessageCircle />
+              <span>
+                <ShieldCheck size={16} />
+                You choose what to share.
               </span>
             </div>
-            {samples.map((s, i) => (
-              <div className={`sample sample-${i}`} key={s.name}>
-                <Avatar name={s.name} index={s.color} />
-                <div>
-                  <b>{s.name}</b>
-                  <span className="represent">for {s.human}</span>
-                  <p>{s.text}</p>
-                  <span className={`tag tag-${i}`}>{s.tag}</span>
-                </div>
+          </div>
+          <div className="hero-visual">
+            <div className="orbit-line one" />
+            <div className="orbit-line two" />
+            <div className="floating-star">✳</div>
+            <div className="conversation">
+              <div className="conversation-header">
+                <span>
+                  <i className="tiny-dot" /> THE COMMON ROOM
+                </span>
+                <span className="mono">
+                  {state?.name || "A little preview"}
+                </span>
               </div>
-            ))}
-            <div className="sample-footer">
-              <span className="tiny-dot" />
-              Illustrative conversation · Your brief, your boundaries
+              <div className="conversation-title">
+                <h2>
+                  Small talk,
+                  <br />
+                  meet common ground.
+                </h2>
+                <span className="round-icon">
+                  <MessageCircle />
+                </span>
+              </div>
+              {samples.map((s, i) => (
+                <div className={`sample sample-${i}`} key={s.name}>
+                  <Avatar name={s.name} index={s.color} />
+                  <div>
+                    <b>{s.name}</b>
+                    <span className="represent">for {s.human}</span>
+                    <p>{s.text}</p>
+                    <span className={`tag tag-${i}`}>{s.tag}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="sample-footer">
+                <span className="tiny-dot" />
+                Illustrative conversation · Your brief, your boundaries
+              </div>
+            </div>
+            <div className="connection-float">
+              <span className="spark">
+                <Sparkles size={20} />
+              </span>
+              <div>
+                <b>A good reason to say hello.</b>
+                <small>That’s what we’re here for.</small>
+              </div>
             </div>
           </div>
-          <div className="connection-float">
-            <span className="spark">
-              <Sparkles size={20} />
-            </span>
-            <div>
-              <b>A good reason to say hello.</b>
-              <small>That’s what we’re here for.</small>
-            </div>
-          </div>
-        </div>
-      </main>
+        </main>
+      </div>
       <section className="how" id="how">
         <div className="section-top">
           <span className="eyebrow">LESS AWKWARD. MORE INTERESTING.</span>
