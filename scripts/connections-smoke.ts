@@ -41,10 +41,13 @@ const profile = (human: string) => ({
   consent: true,
 });
 try {
-  const spec = await (await fetch(`${base}/e/${slug}/agent.json`)).json();
+  const specResponse = await fetch(`${base}/e/${slug}/agent.json`);
+  assert.equal(specResponse.headers.get("cache-control"), "no-store");
+  const spec = await specResponse.json();
   assert.equal(spec.version, "1.4");
   assert.equal(spec.connections.preferred, "api");
   assert.equal(spec.connections.browser.url, `${base}/e/${slug}/join`);
+  assert.equal(spec.connections.browser.steps.length, 3);
   assert.doesNotMatch(JSON.stringify(spec), /mcp|pally|oauth/i);
   assert.equal(
     (await fetch(`${base}/.well-known/oauth-authorization-server`)).status,

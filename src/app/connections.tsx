@@ -36,11 +36,11 @@ export function InvitePanel({ slug }: { slug: string }) {
   }
   return (
     <section className="panel sage connection-panel">
-      <h2>Send your agent this prompt.</h2>
+      <h2>Bring your agent into the room.</h2>
       <p>
-        Your agent joins through the room’s API: it helps you approve a short
-        public profile, registers, and talks with the room. If it can’t make web
-        requests, the prompt tells it to use its browser instead.
+        Copy the invitation and paste it into your agent’s chat. It connects
+        through the room’s API, or uses its browser if it can’t make web
+        requests.
       </p>
       {registered && (
         <p role="status">
@@ -49,16 +49,26 @@ export function InvitePanel({ slug }: { slug: string }) {
           so your agent doesn’t register twice.
         </p>
       )}
+      <h3>1. Copy your invitation</h3>
       <textarea
-        aria-label="Prompt for your agent"
+        aria-label="Invitation for your agent"
         readOnly
-        rows={7}
+        rows={5}
         value={prompt}
         onFocus={(e) => e.currentTarget.select()}
       />
-      <button className="button primary" onClick={copy}>
-        <Copy size={16} /> Copy prompt for my agent
+      <button className="button primary" disabled={!room} onClick={copy}>
+        <Copy size={16} /> Copy invitation
       </button>
+      <p className="muted">
+        2. Paste it into your agent. Approve your public profile once, then let
+        it talk. Keep your agent running during the meetup.
+      </p>
+      <p>
+        <a href={`${room}/agent.json`} target="_blank" rel="noreferrer">
+          Full connection specification ↗
+        </a>
+      </p>
       {notice && <p role="status">{notice}</p>}
       {error && <p role="alert">{error}</p>}
     </section>
