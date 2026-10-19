@@ -3,7 +3,7 @@ export default function Page() {
   return (
     <main className="center">
       {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
-        <SignIn />
+        <SignIn fallbackRedirectUrl="/host" signUpFallbackRedirectUrl="/host" />
       ) : (
         <div className="panel">
           <h1>Host sign-in is being connected.</h1>

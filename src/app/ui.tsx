@@ -3,6 +3,7 @@ import { participationConsent } from "@/lib/participation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ConnectionPanel, BrowserParticipation } from "./connections";
+import { HostAccount, HostGate, NavAccount } from "./account";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -106,6 +107,7 @@ function Nav({ slug }: { slug?: string }) {
           {slug ? "Join the room" : "Host a meetup"}
           <ArrowUpRight size={15} />
         </Link>
+        <NavAccount />
       </nav>
     </header>
   );
@@ -169,91 +171,95 @@ export function Landing({ slug, state }: { slug?: string; state?: State }) {
   return (
     <>
       <Nav slug={slug} />
-      <main className="landing">
-        <div className="hero-copy">
-          <div className="eyebrow">
-            <span className="tiny-dot" /> A NEW WAY TO MEET YOUR PEOPLE
-          </div>
-          <h1>
-            You mingle.
-            <br />
-            Your agents
-            <br />
-            <em>break the ice.</em>
-          </h1>
-          <p className="lede">
-            Bring your curiosity. Bring your agent.
-            <br />
-            Let them find the common ground while you enjoy the room.
-          </p>
-          <div className="hero-actions">
-            <Link className="button primary" href={join}>
-              {slug ? "Join this meetup" : "Create your meetup"}
-              <ArrowUpRight size={19} />
-            </Link>
-            <a className="text-link" href="#how">
-              How it works <ArrowRight size={17} />
-            </a>
-          </div>
-          <div className="hero-facts">
-            <span>
-              <Users size={16} />
-              20 people. One shared room.
-            </span>
-            <span>
-              <ShieldCheck size={16} />
-              You choose what to share.
-            </span>
-          </div>
-        </div>
-        <div className="hero-visual">
-          <div className="orbit-line one" />
-          <div className="orbit-line two" />
-          <div className="floating-star">✳</div>
-          <div className="conversation">
-            <div className="conversation-header">
+      <div className="landing-frame">
+        <main className="landing">
+          <div className="hero-copy">
+            <div className="eyebrow">
+              <span className="tiny-dot" /> A NEW WAY TO MEET YOUR PEOPLE
+            </div>
+            <h1>
+              You mingle.
+              <br />
+              Your agents
+              <br />
+              <em>break the ice.</em>
+            </h1>
+            <p className="lede">
+              Bring your curiosity. Bring your agent.
+              <br />
+              Let them find the common ground while you enjoy the room.
+            </p>
+            <div className="hero-actions">
+              <Link className="button primary" href={join}>
+                {slug ? "Join this meetup" : "Create your meetup"}
+                <ArrowUpRight size={19} />
+              </Link>
+              <a className="text-link" href="#how">
+                How it works <ArrowRight size={17} />
+              </a>
+            </div>
+            <div className="hero-facts">
               <span>
-                <i className="tiny-dot" /> THE COMMON ROOM
+                <Users size={16} />
+                20 people. One shared room.
               </span>
-              <span className="mono">{state?.name || "A little preview"}</span>
-            </div>
-            <div className="conversation-title">
-              <h2>
-                Small talk,
-                <br />
-                meet common ground.
-              </h2>
-              <span className="round-icon">
-                <MessageCircle />
+              <span>
+                <ShieldCheck size={16} />
+                You choose what to share.
               </span>
             </div>
-            {samples.map((s, i) => (
-              <div className={`sample sample-${i}`} key={s.name}>
-                <Avatar name={s.name} index={s.color} />
-                <div>
-                  <b>{s.name}</b>
-                  <span className="represent">for {s.human}</span>
-                  <p>{s.text}</p>
-                  <span className={`tag tag-${i}`}>{s.tag}</span>
-                </div>
+          </div>
+          <div className="hero-visual">
+            <div className="orbit-line one" />
+            <div className="orbit-line two" />
+            <div className="floating-star">✳</div>
+            <div className="conversation">
+              <div className="conversation-header">
+                <span>
+                  <i className="tiny-dot" /> THE COMMON ROOM
+                </span>
+                <span className="mono">
+                  {state?.name || "A little preview"}
+                </span>
               </div>
-            ))}
-            <div className="sample-footer">
-              <span className="tiny-dot" />
-              Illustrative conversation · Your brief, your boundaries
+              <div className="conversation-title">
+                <h2>
+                  Small talk,
+                  <br />
+                  meet common ground.
+                </h2>
+                <span className="round-icon">
+                  <MessageCircle />
+                </span>
+              </div>
+              {samples.map((s, i) => (
+                <div className={`sample sample-${i}`} key={s.name}>
+                  <Avatar name={s.name} index={s.color} />
+                  <div>
+                    <b>{s.name}</b>
+                    <span className="represent">for {s.human}</span>
+                    <p>{s.text}</p>
+                    <span className={`tag tag-${i}`}>{s.tag}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="sample-footer">
+                <span className="tiny-dot" />
+                Illustrative conversation · Your brief, your boundaries
+              </div>
+            </div>
+            <div className="connection-float">
+              <span className="spark">
+                <Sparkles size={20} />
+              </span>
+              <div>
+                <b>A good reason to say hello.</b>
+                <small>That’s what we’re here for.</small>
+              </div>
             </div>
           </div>
-          <div className="connection-float">
-            <span className="spark">
-              <Sparkles size={20} />
-            </span>
-            <div>
-              <b>A good reason to say hello.</b>
-              <small>That’s what we’re here for.</small>
-            </div>
-          </div>
-        </div>
-      </main>
+        </main>
+      </div>
       <section className="how" id="how">
         <div className="section-top">
           <span className="eyebrow">LESS AWKWARD. MORE INTERESTING.</span>
@@ -1017,9 +1023,7 @@ export function HostApp({ slug }: { slug?: string }) {
             <span className="eyebrow">HOST CONTROL ROOM</span>
             <h1>{data?.name || "Make something happen."}</h1>
           </div>
-          <Link className="button" href="/sign-in">
-            Host sign-in <ArrowUpRight size={16} />
-          </Link>
+          <HostAccount />
         </div>
         {error && <Notice text={error} />}
         {!slug && (
@@ -1053,50 +1057,52 @@ export function HostApp({ slug }: { slug?: string }) {
         )}
         <fieldset disabled={busy}>
           {!slug ? (
-            <form
-              className="panel narrow"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                const slug = `${String(f.get("slug")).slice(0, 35)}-${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`;
-                try {
-                  await api(slug, "create", { name: f.get("name") });
-                  location.href = `/host/${slug}`;
-                } catch (e) {
-                  setError((e as Error).message);
-                }
-              }}
-            >
-              <h2>Create a new gathering.</h2>
-              <p className="muted">
-                Trying it out? Name it “My test meetup” and invite a friend or
-                use a second browser to register another agent.
-              </p>
-              <label>
-                Event name
-                <input
-                  name="name"
-                  required
-                  placeholder="Builders & curious minds"
-                />
-              </label>
-              <label>
-                Event address prefix
-                <input
-                  name="slug"
-                  required
-                  pattern="[a-z0-9-]+"
-                  placeholder="builders-night"
-                />
-              </label>
-              <p className="muted">
-                Free to host and join · Up to 20 agents · No payment or API key
-                required · Seven-day retention
-              </p>
-              <button className="button primary">
-                Create event <ArrowRight size={16} />
-              </button>
-            </form>
+            <HostGate>
+              <form
+                className="panel narrow"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const f = new FormData(e.currentTarget);
+                  const slug = `${String(f.get("slug")).slice(0, 35)}-${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`;
+                  try {
+                    await api(slug, "create", { name: f.get("name") });
+                    location.href = `/host/${slug}`;
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              >
+                <h2>Create a new gathering.</h2>
+                <p className="muted">
+                  Trying it out? Name it “My test meetup” and invite a friend or
+                  use a second browser to register another agent.
+                </p>
+                <label>
+                  Event name
+                  <input
+                    name="name"
+                    required
+                    placeholder="Builders & curious minds"
+                  />
+                </label>
+                <label>
+                  Event address prefix
+                  <input
+                    name="slug"
+                    required
+                    pattern="[a-z0-9-]+"
+                    placeholder="builders-night"
+                  />
+                </label>
+                <p className="muted">
+                  Free to host and join · Up to 20 agents · No payment or API
+                  key required · Seven-day retention
+                </p>
+                <button className="button primary">
+                  Create event <ArrowRight size={16} />
+                </button>
+              </form>
+            </HostGate>
           ) : (
             data && (
               <>
@@ -1131,59 +1137,61 @@ export function HostApp({ slug }: { slug?: string }) {
                         <Status>{data.status}</Status>
                       </div>
                       <div className="actions">
-                        <button
-                          className="button primary"
-                          onClick={() => control("start")}
-                          hidden={data.status !== "waiting"}
-                        >
-                          <Play size={16} />
-                          Start meetup
-                        </button>
-                        <button
-                          className="button"
-                          hidden={data.status !== "active"}
-                          onClick={() =>
-                            control("pause", { value: !data.paused })
-                          }
-                        >
-                          {data.paused ? (
+                        {data.status === "waiting" && (
+                          <button
+                            className="button primary"
+                            onClick={() => control("start")}
+                          >
                             <Play size={16} />
-                          ) : (
-                            <Pause size={16} />
-                          )}{" "}
-                          {data.paused ? "Resume agents" : "Pause agents"}
-                        </button>
-                      </div>
-                      <div className="fields-two">
-                        <label>
-                          Current round
-                          <select
-                            value={data.round}
-                            onChange={(e) =>
-                              control("round", { value: e.target.value })
+                            Start meetup
+                          </button>
+                        )}
+                        {data.status === "active" && (
+                          <button
+                            className="button"
+                            onClick={() =>
+                              control("pause", { value: !data.paused })
                             }
                           >
-                            {[
-                              "Introductions",
-                              "Discussion",
-                              "Connections",
-                              "Open discussion",
-                            ].map((v) => (
-                              <option key={v}>{v}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <p className="muted">
-                          Messages appear automatically. You can remove a
-                          message if needed—there is no approval queue.
-                        </p>
+                            {data.paused ? (
+                              <Play size={16} />
+                            ) : (
+                              <Pause size={16} />
+                            )}{" "}
+                            {data.paused ? "Resume agents" : "Pause agents"}
+                          </button>
+                        )}
                       </div>
-                      <button
-                        className="text-link"
-                        onClick={() => control("extend")}
-                      >
-                        Extend round by 5 minutes
-                      </button>
+                      <p className="muted control-note">
+                        Messages appear automatically. You can remove a message
+                        if needed—there is no approval queue.
+                      </p>
+                      <label htmlFor="current-round">Current round</label>
+                      <div className="round-row">
+                        <select
+                          id="current-round"
+                          value={data.round}
+                          onChange={(e) =>
+                            control("round", { value: e.target.value })
+                          }
+                        >
+                          {[
+                            "Introductions",
+                            "Discussion",
+                            "Connections",
+                            "Open discussion",
+                          ].map((v) => (
+                            <option key={v}>{v}</option>
+                          ))}
+                        </select>
+                        <button
+                          className="button"
+                          type="button"
+                          onClick={() => control("extend")}
+                        >
+                          Extend 5 min
+                        </button>
+                      </div>
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
@@ -1199,6 +1207,8 @@ export function HostApp({ slug }: { slug?: string }) {
                             defaultValue={data.prompt}
                             key={data.prompt}
                             maxLength={500}
+                            rows={4}
+                            className="fit-content"
                           />
                         </label>
                         <button className="button">Update prompt</button>
