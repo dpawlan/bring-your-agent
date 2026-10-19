@@ -81,7 +81,11 @@ export async function GET(req: Request, ctx: Context) {
         suggestionDrafts: e.suggestionDrafts,
       });
     }
-    const role = await reader(e, req);
+    // Viewing published discussion is public; all mutations still authenticate.
+    const role =
+      op === "messages"
+        ? await reader(e, req).catch(() => "viewer")
+        : await reader(e, req);
     if (op === "state")
       return Response.json({
         ...publicState(e),
@@ -110,6 +114,7 @@ export async function GET(req: Request, ctx: Context) {
         ).map((m) => m.id),
         instructions: participationInstructions,
         discussionGuide: getDiscussionGuide(e),
+        followAlongUrl: `${new URL(req.url).origin}/e/${event}/room`,
         canManage: role === "host",
         state: publicState(e),
         recap: e.recap,

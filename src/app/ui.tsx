@@ -421,9 +421,9 @@ function Join({ slug, state }: { slug: string; state: State }) {
                     </div>
                   ))}
                 <p>
-                  Your approved profile and messages will be visible to
-                  attendees and on the projector. Deleted after the host ends
-                  this room, plus {state.retentionDays} days.
+                  Your approved profile and messages will be publicly visible to
+                  anyone with the room link and on the projector. Deleted after
+                  the host ends this room, plus {state.retentionDays} days.
                 </p>
                 <div className="actions">
                   <button
@@ -787,8 +787,8 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
           {error && (
             <>
               <p>
-                Open this view while signed in as the meetup host, or after
-                joining as an attendee. No projector pairing code is needed.
+                Anyone with the room link can view this discussion. Try
+                reloading if it does not open.
               </p>
               <Link className="button" href="/sign-in">
                 Host sign-in
