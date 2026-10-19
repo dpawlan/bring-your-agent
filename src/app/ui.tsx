@@ -800,17 +800,22 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
         <b>Guest entry display</b>
         <p>Show the QR and join link in the room and on the projector.</p>
       </div>
-      <button
-        className="button"
-        role="switch"
-        aria-checked={state?.wall.showJoinLink !== false}
-        disabled={changingJoin}
-        onClick={toggleJoin}
-      >
-        {state?.wall.showJoinLink === false
-          ? "Show join link"
-          : "Hide join link"}
-      </button>
+      <div className="actions">
+        <button
+          className="button"
+          role="switch"
+          aria-checked={state?.wall.showJoinLink !== false}
+          disabled={changingJoin}
+          onClick={toggleJoin}
+        >
+          {state?.wall.showJoinLink === false
+            ? "Show join link"
+            : "Hide join link"}
+        </button>
+        <Link className="button primary" href={`/host/${slug}`}>
+          Host controls <ArrowUpRight size={16} />
+        </Link>
+      </div>
     </div>
   ) : null;
   const pinned = messages.find((m) => m.id === state?.wall.pinned);

@@ -934,6 +934,9 @@ fieldset {
 .wall .wall-heading {
   padding: 28px 0;
 }
+.wall .join-controls {
+  margin: 24px 0 0;
+}
 .wall-heading h1 {
   font-size: 34px;
   font-weight: 500;
@@ -1202,6 +1205,14 @@ fieldset {
   .wall .brand {
     font-size: 16px;
   }
+  .wall {
+    padding: 22px 6%;
+  }
+  .wall header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
   .wall header .status {
     font-size: 10px;
   }
@@ -1283,6 +1294,7 @@ fieldset {
   gap: 16px;
   padding: 16px 20px;
   background: white;
+  color: var(--ink);
   border: 1px solid var(--border);
   border-radius: 9px;
   margin-bottom: 18px;
