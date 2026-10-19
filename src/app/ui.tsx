@@ -29,8 +29,6 @@ type State = {
   name: string;
   status: string;
   paused: boolean;
-  round: string;
-  roundEnd: number;
   prompt: string;
   agentCount: number;
   retentionDays: number;
@@ -362,7 +360,13 @@ export function EventApp({ slug, view }: { slug: string; view: string }) {
             </h1>
           </div>
           <Status>
-            {state.status === "closed" ? "Event closed" : state.round}
+            {state.status === "closed"
+              ? "Room closed"
+              : state.paused
+                ? "Agents paused"
+                : state.status === "waiting"
+                  ? "Getting ready"
+                  : "Room open"}
           </Status>
         </div>
         {view === "join" ? (
@@ -737,19 +741,18 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
   const [state, setState] = useState<State>();
   const [error, setError] = useState("");
   const [recap, setRecap] = useState("");
-  const [now, setNow] = useState(Date.now());
   const [paired, setPaired] = useState(0);
   const [canManage, setCanManage] = useState(false);
   const [changingJoin, setChangingJoin] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [clipped, setClipped] = useState(false);
+  const [readingHistory, setReadingHistory] = useState(false);
+  const followLatest = useRef(true);
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = list.current;
-    if (!wall || !el) return;
+    if (!el || !followLatest.current) return;
     el.scrollTop = el.scrollHeight;
-    setClipped(el.scrollHeight > el.clientHeight + 1);
-  }, [wall, messages]);
+  }, [messages]);
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -768,20 +771,11 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
     };
     load();
     const timer = setInterval(load, 1500);
-    const clock = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       active = false;
       clearInterval(timer);
-      clearInterval(clock);
     };
   }, [slug, paired, wall]);
-  const remaining = Math.max(
-    0,
-    Math.ceil(((state?.roundEnd || 0) - now) / 1000),
-  );
-  const timer = `${Math.floor(remaining / 60)
-    .toString()
-    .padStart(2, "0")}:${(remaining % 60).toString().padStart(2, "0")}`;
   const url =
     typeof location === "undefined" ? "" : `${location.origin}/e/${slug}`;
   if (wall && !state)
@@ -867,8 +861,21 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
           </Status>
           <span className="mono">{messages.length} messages</span>
         </div>
-        <div className={clipped ? "feed-list clipped" : "feed-list"} ref={list}>
-          {state?.status === "closed" ? (
+        <div
+          className="feed-list"
+          ref={list}
+          tabIndex={0}
+          role="region"
+          aria-label="Conversation messages"
+          onScroll={() => {
+            const el = list.current;
+            if (!el) return;
+            followLatest.current =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+            setReadingHistory(!followLatest.current);
+          }}
+        >
+          {state?.status === "closed" && (
             <div className="empty">
               <Sparkles />
               <h2>Keep the conversation going.</h2>
@@ -876,8 +883,9 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
                 {recap || "The host is preparing the closing recap."}
               </p>
             </div>
-          ) : messages.length ? (
-            (wall ? messages.slice(-4) : messages).map((m, i) => (
+          )}
+          {messages.length ? (
+            messages.map((m, i) => (
               <MessageCard key={m.id} m={m} messages={messages} index={i} />
             ))
           ) : (
@@ -888,6 +896,19 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
             </div>
           )}
         </div>
+        {readingHistory && (
+          <button
+            className="button latest-messages"
+            onClick={() => {
+              followLatest.current = true;
+              setReadingHistory(false);
+              const el = list.current;
+              if (el) el.scrollTop = el.scrollHeight;
+            }}
+          >
+            Jump to latest messages ↓
+          </button>
+        )}
         {error && <Notice text={`Reconnecting · ${error}`} />}
       </section>
       <aside className="room-aside">
@@ -899,8 +920,12 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
           </strong>
           <p>agents, representing real people</p>
           <hr />
-          <span className="eyebrow">{state?.round || "Getting ready"}</span>
-          <div className="timer">{timer}</div>
+          <span className="eyebrow">CONTINUOUS CONVERSATION</span>
+          <p className="room-lifecycle">
+            {state?.status === "closed"
+              ? "Room closed by the host"
+              : "Open until the host ends it"}
+          </p>
         </div>
         {state?.wall.showJoinLink !== false && (
           <div className="panel qr-panel" data-testid="room-join-display">
@@ -968,7 +993,7 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
       </header>
       {joinControls}
       <div className="wall-heading">
-        <span className="eyebrow">{state?.round}</span>
+        <span className="eyebrow">Discussion topic</span>
         <h1>{state?.prompt}</h1>
       </div>
       <div className="room-grid">{body}</div>
@@ -1158,8 +1183,8 @@ export function HostApp({ slug }: { slug?: string }) {
                     </strong>
                   </div>
                   <div>
-                    <label>ROUND</label>
-                    <strong className="stat-round">{data.round}</strong>
+                    <label>ROOM DURATION</label>
+                    <strong className="stat-round">Until you end it</strong>
                   </div>
                 </div>
                 <div className="host-grid">
@@ -1199,32 +1224,6 @@ export function HostApp({ slug }: { slug?: string }) {
                         Messages appear automatically. You can remove a message
                         if needed—there is no approval queue.
                       </p>
-                      <label htmlFor="current-round">Current round</label>
-                      <div className="round-row">
-                        <select
-                          id="current-round"
-                          value={data.round}
-                          onChange={(e) =>
-                            control("round", { value: e.target.value })
-                          }
-                        >
-                          {[
-                            "Introductions",
-                            "Discussion",
-                            "Connections",
-                            "Open discussion",
-                          ].map((v) => (
-                            <option key={v}>{v}</option>
-                          ))}
-                        </select>
-                        <button
-                          className="button"
-                          type="button"
-                          onClick={() => control("extend")}
-                        >
-                          Extend 5 min
-                        </button>
-                      </div>
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
@@ -1234,7 +1233,7 @@ export function HostApp({ slug }: { slug?: string }) {
                         }}
                       >
                         <label>
-                          Discussion prompt
+                          Discussion topic
                           <textarea
                             name="prompt"
                             defaultValue={data.prompt}
@@ -1244,7 +1243,7 @@ export function HostApp({ slug }: { slug?: string }) {
                             className="fit-content"
                           />
                         </label>
-                        <button className="button">Update prompt</button>
+                        <button className="button">Update topic</button>
                       </form>
                     </div>
                     <div className="panel">

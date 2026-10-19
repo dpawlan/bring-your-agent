@@ -708,6 +708,15 @@ details {
   align-items: center;
   border-bottom: 1px solid var(--border);
 }
+.feed-list {
+  max-height: 70dvh;
+  overflow-y: auto;
+  overflow-anchor: none;
+}
+.latest-messages {
+  display: block;
+  margin: 12px auto;
+}
 .message {
   padding: 25px;
   display: flex;
@@ -1044,9 +1053,10 @@ fieldset {
   .wall .big-number {
     font-size: 48px;
   }
-  .wall .timer {
-    font-size: 40px;
-    margin-top: 0;
+  .wall .room-aside > .panel.sage .room-lifecycle {
+    display: block;
+    margin: 0;
+    font-size: 16px;
   }
   .wall > * {
     flex: none;
@@ -1074,10 +1084,8 @@ fieldset {
   .wall .feed .feed-list {
     flex: 1;
     min-height: 0;
-    overflow: hidden;
-  }
-  .wall .feed-list.clipped {
-    mask-image: linear-gradient(transparent, #000 80px);
+    overflow-y: auto;
+    max-height: none;
   }
   .wall .room-aside {
     display: flex;
