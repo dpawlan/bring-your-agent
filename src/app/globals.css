@@ -607,6 +607,7 @@ select {
   background: #fcfdf9;
   resize: vertical;
   font-size: 13px;
+  font-weight: 400;
 }
 textarea {
   min-height: 85px;
@@ -615,6 +616,25 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+}
+.control-note {
+  margin: 14px 0 0;
+}
+.round-row {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+.round-row select {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.round-row .button {
+  white-space: nowrap;
+}
+textarea.fit-content {
+  field-sizing: content;
 }
 .actions {
   display: flex;

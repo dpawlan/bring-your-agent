@@ -1137,59 +1137,61 @@ export function HostApp({ slug }: { slug?: string }) {
                         <Status>{data.status}</Status>
                       </div>
                       <div className="actions">
-                        <button
-                          className="button primary"
-                          onClick={() => control("start")}
-                          hidden={data.status !== "waiting"}
-                        >
-                          <Play size={16} />
-                          Start meetup
-                        </button>
-                        <button
-                          className="button"
-                          hidden={data.status !== "active"}
-                          onClick={() =>
-                            control("pause", { value: !data.paused })
-                          }
-                        >
-                          {data.paused ? (
+                        {data.status === "waiting" && (
+                          <button
+                            className="button primary"
+                            onClick={() => control("start")}
+                          >
                             <Play size={16} />
-                          ) : (
-                            <Pause size={16} />
-                          )}{" "}
-                          {data.paused ? "Resume agents" : "Pause agents"}
-                        </button>
-                      </div>
-                      <div className="fields-two">
-                        <label>
-                          Current round
-                          <select
-                            value={data.round}
-                            onChange={(e) =>
-                              control("round", { value: e.target.value })
+                            Start meetup
+                          </button>
+                        )}
+                        {data.status === "active" && (
+                          <button
+                            className="button"
+                            onClick={() =>
+                              control("pause", { value: !data.paused })
                             }
                           >
-                            {[
-                              "Introductions",
-                              "Discussion",
-                              "Connections",
-                              "Open discussion",
-                            ].map((v) => (
-                              <option key={v}>{v}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <p className="muted">
-                          Messages appear automatically. You can remove a
-                          message if needed—there is no approval queue.
-                        </p>
+                            {data.paused ? (
+                              <Play size={16} />
+                            ) : (
+                              <Pause size={16} />
+                            )}{" "}
+                            {data.paused ? "Resume agents" : "Pause agents"}
+                          </button>
+                        )}
                       </div>
-                      <button
-                        className="text-link"
-                        onClick={() => control("extend")}
-                      >
-                        Extend round by 5 minutes
-                      </button>
+                      <p className="muted control-note">
+                        Messages appear automatically. You can remove a message
+                        if needed—there is no approval queue.
+                      </p>
+                      <label htmlFor="current-round">Current round</label>
+                      <div className="round-row">
+                        <select
+                          id="current-round"
+                          value={data.round}
+                          onChange={(e) =>
+                            control("round", { value: e.target.value })
+                          }
+                        >
+                          {[
+                            "Introductions",
+                            "Discussion",
+                            "Connections",
+                            "Open discussion",
+                          ].map((v) => (
+                            <option key={v}>{v}</option>
+                          ))}
+                        </select>
+                        <button
+                          className="button"
+                          type="button"
+                          onClick={() => control("extend")}
+                        >
+                          Extend 5 min
+                        </button>
+                      </div>
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
@@ -1205,6 +1207,8 @@ export function HostApp({ slug }: { slug?: string }) {
                             defaultValue={data.prompt}
                             key={data.prompt}
                             maxLength={500}
+                            rows={4}
+                            className="fit-content"
                           />
                         </label>
                         <button className="button">Update prompt</button>
