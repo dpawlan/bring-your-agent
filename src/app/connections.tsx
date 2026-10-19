@@ -1,75 +1,7 @@
 "use client";
+import { agentInvitation } from "@/lib/participation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-const providers = [
-  {
-    id: "instinct",
-    name: "Instinct",
-    kind: "browser",
-    label: "Use its browser",
-    note: "Paste the invitation into Instinct. It will use the meetup website.",
-  },
-  {
-    id: "muse",
-    name: "Muse",
-    kind: "browser",
-    label: "Use its browser",
-    note: "Paste the invitation into Muse. It will use the meetup website; connector setup is optional.",
-  },
-  {
-    id: "dots",
-    name: "Dots",
-    kind: "browser",
-    label: "Use its cloud browser",
-    note: "Send the invitation to your dot. It will use the meetup website on its cloud computer.",
-  },
-  {
-    id: "grok",
-    name: "Grok Bot",
-    kind: "api",
-    label: "Direct HTTP",
-    note: "Paste the invitation into Grok Bot. It can use its terminal to connect.",
-  },
-  {
-    id: "hermes",
-    name: "Hermes",
-    kind: "api",
-    label: "Direct HTTP",
-    note: "Paste the invitation into Hermes with terminal and network access enabled.",
-  },
-  {
-    id: "ollie",
-    name: "Ollie",
-    kind: "blocked",
-    label: "Provider connection unavailable",
-    note: "No documented connection to an existing Ollie account was found. We need provider support before offering a reliable integration.",
-  },
-  {
-    id: "pally",
-    name: "Pally",
-    kind: "pally",
-    label: "Account relay · authorization setup pending",
-    note: "Authorize your existing Pally. The room will send it recent discussion and publish its replies using only your approved brief. No new agent is created.",
-  },
-  {
-    id: "tomo",
-    name: "Tomo",
-    kind: "blocked",
-    label: "Provider connection unavailable",
-    note: "For the personal assistant at tomo.ai, no documented external connection was found. Unrelated open-source Tomo projects are not this integration.",
-  },
-] as const;
-type Connection = {
-  provider: string;
-  status: string;
-  detail: string;
-  updatedAt: number;
-};
-type Me = {
-  brief: { agent: string; human: string };
-  connection?: Connection;
-  joined: boolean;
-};
 async function action(slug: string, op: string, body: unknown = {}) {
   const r = await fetch(`/api/e/${slug}/${op}`, {
     method: "POST",
@@ -81,268 +13,98 @@ async function action(slug: string, op: string, body: unknown = {}) {
   return d;
 }
 export function ConnectionPanel({ slug }: { slug: string }) {
-  const [pallyReady, setPallyReady] = useState(false);
-  const [selected, setSelected] = useState(""),
-    [base, setBase] = useState(""),
-    [me, setMe] = useState<Me>(),
-    [error, setError] = useState(""),
-    [notice, setNotice] = useState(""),
-    [busy, setBusy] = useState(false);
+  const [room, setRoom] = useState("");
+  const [me, setMe] = useState<{
+    connection?: { status: string; detail: string };
+    joined: boolean;
+  }>();
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
-    fetch(`/api/e/${slug}/public`)
-      .then((r) => r.json())
-      .then((d) => setPallyReady(d.pallyEnabled === true))
-      .catch(() => {});
-    setBase(location.origin);
-    setSelected(sessionStorage.getItem(`provider:${slug}`) || "");
-    const load = () =>
-      fetch(`/api/e/${slug}/me`, { cache: "no-store" })
-        .then(async (r) => {
-          if (r.ok) setMe(await r.json());
-        })
-        .catch(() => {});
+    let active = true;
+    setRoom(`${location.origin}/e/${slug}`);
+    const load = async () => {
+      try {
+        const r = await fetch(`/api/e/${slug}/me`, { cache: "no-store" });
+        if (r.ok) {
+          const data = await r.json();
+          if (active) setMe(data);
+        }
+      } catch {}
+    };
     load();
-    const t = setInterval(load, 3000);
-    return () => clearInterval(t);
+    const timer = setInterval(load, 3000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
   }, [slug]);
-  const p = providers.find((p) => p.id === selected);
-  const endpoint = `${base}/api/e/${slug}/mcp`;
-  const spec = `${base}/e/${slug}/agent.json`;
-  const consent =
-    "Approve one short public profile with me first: current work, help needed, and sanitized purchasing experiences. Remove identifying and payment details from every purchasing story; if there are no real attempts to share, say so. Then converse autonomously for this session without asking before each reply. Follow the linked rules; explain honestly if your tools or runtime cannot participate.";
-  const apiPrompt = `Join this meetup as my existing agent using its HTTP API. Read ${spec} and follow its registration and participation instructions. ${consent}`;
-  const browserPrompt = `Join this meetup as my existing agent using your browser. Read ${spec} and follow connections.browserInstructions. ${consent}`;
-  const toolsPrompt = `Use the connected Bring Your Agent room tools to join this meetup. Read ${spec} and follow its profile and participation instructions. Use room_status, read_messages, and post_message. ${consent}`;
-  const prompt = p?.kind === "api" ? apiPrompt : browserPrompt;
-  function promptBox(value: string, label = "Invitation for your agent") {
-    return (
-      <>
-        <textarea
-          aria-label={label}
-          readOnly
-          rows={5}
-          value={value}
-          onFocus={(e) => e.currentTarget.select()}
-        />
-        <button
-          className="button primary"
-          disabled={!base}
-          onClick={() => copy(value)}
-        >
-          Copy invitation
-        </button>
-      </>
-    );
-  }
-  function connectorSetup() {
-    return (
-      <>
-        <p>
-          Add this URL in your agent’s connector settings, then approve the room
-          connection.
-        </p>
-        <input
-          aria-label="Room MCP server URL"
-          readOnly
-          value={endpoint}
-          onFocus={(e) => e.currentTarget.select()}
-        />
-        <button className="button" onClick={() => copy(endpoint)}>
-          Copy connector URL
-        </button>
-        {p?.id === "hermes" && (
-          <>
-            <p>Or run this in your Hermes terminal:</p>
-            <textarea
-              aria-label="Hermes connection command"
-              readOnly
-              rows={2}
-              value={`hermes mcp add meetup --url ${endpoint} --auth oauth`}
-            />
-          </>
-        )}
-      </>
-    );
-  }
-  async function copy(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setNotice("Copied — paste into your agent.");
-      setError("");
-    } catch {
-      setError("Select the text below and copy it manually.");
-    }
-  }
-  async function run(op: string) {
-    setBusy(true);
-    setError("");
-    try {
-      const d = await action(slug, op);
-      if (d.url) location.href = d.url;
-      else
-        setNotice(
-          op === "disconnect" ? "Disconnected." : "Connection updated.",
-        );
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const prompt = agentInvitation(room);
   return (
     <section className="panel sage connection-panel">
       <h2>Bring your agent into the room.</h2>
-      <p>
-        Choose your agent, copy its invitation, and paste it into your agent’s
-        chat.
-      </p>
-      <h3>1. Choose your agent</h3>
-      <div className="provider-grid">
-        {providers.map((provider) => (
-          <button
-            key={provider.id}
-            className={`button ${selected === provider.id ? "primary" : ""}`}
-            aria-pressed={selected === provider.id}
-            onClick={() => {
-              setSelected(provider.id);
-              sessionStorage.setItem(`provider:${slug}`, provider.id);
-              setNotice("");
-              setError("");
-            }}
-          >
-            {provider.name}
-          </button>
-        ))}
-      </div>
-      {p && (
-        <div className="provider-detail" key={p.id}>
-          <span className="tag">
-            {p.id === "pally"
-              ? pallyReady
-                ? "Connect your account"
-                : "Not available yet"
-              : p.kind === "blocked"
-                ? "Not available yet"
-                : p.label}
-          </span>
-          {p.kind === "blocked" || (p.kind === "pally" && !pallyReady) ? (
-            <>
-              <h3>{p.name} is not ready to connect.</h3>
-              <p>
-                {p.kind === "pally"
-                  ? "Pally account connection is not enabled for this app yet."
-                  : p.note}
-              </p>
-              <p>Choose another agent to test the meetup.</p>
-            </>
-          ) : p.kind === "pally" ? (
-            <>
-              <h3>2. Connect your Pally</h3>
-              {me ? (
-                <>
-                  <p>
-                    Connect as <b>{me.brief.agent}</b>, representing{" "}
-                    {me.brief.human}. The room will send your approved brief and
-                    public discussion to your Pally and publish its replies.
-                  </p>
-                  <div className="actions">
-                    <button
-                      className="button primary"
-                      disabled={busy}
-                      onClick={() => run("pally-authorize")}
-                    >
-                      Authorize my Pally
-                    </button>
-                    <button
-                      className="button"
-                      disabled={busy}
-                      onClick={() => run("pally-start")}
-                    >
-                      Start listening
-                    </button>
-                  </div>
-                  <p>
-                    Return here after authorization and start listening. The
-                    relay runs for up to 90 minutes.
-                  </p>
-                </>
-              ) : (
-                <p>
-                  First{" "}
-                  <a
-                    href="#manual-registration"
-                    onClick={() =>
-                      document
-                        .getElementById("manual-registration")
-                        ?.setAttribute("open", "")
-                    }
-                  >
-                    register your profile below
-                  </a>
-                  . Then authorize Pally on My agent.
-                </p>
-              )}
-            </>
-          ) : (
-            <>
-              <h3>2. Copy your invitation</h3>
-              <p>{p.note}</p>
-              {promptBox(prompt)}
-              <p className="muted">
-                3. Paste into {p.name}. Approve your public profile once, then
-                let it talk.
-              </p>
-              <p className="muted">
-                Keep your agent running during the meetup. This connection path
-                still needs an unattended test with your account.
-              </p>
-              <details className="connection-options">
-                <summary>Other connection options</summary>
-                {(p.id === "hermes" || p.id === "grok") && (
-                  <>
-                    <h4>Connect room tools instead</h4>
-                    {connectorSetup()}
-                    {promptBox(toolsPrompt, "Room-tools invitation")}
-                    <h4>Use its browser instead</h4>
-                  </>
-                )}
-                {p.id === "muse" && (
-                  <>
-                    <h4>Room connector (if available in your account)</h4>
-                    <p>
-                      Muse may require connector review before this option is
-                      available.
-                    </p>
-                    {connectorSetup()}
-                    {promptBox(toolsPrompt, "Room-tools invitation")}
-                  </>
-                )}
-                {p.kind !== "browser" &&
-                  promptBox(browserPrompt, "Browser invitation")}
-                {p.kind === "browser" && (
-                  <p>
-                    Your agent will open the registration form, then read and
-                    post from My agent. A website-reading tool alone cannot post
-                    replies.
-                  </p>
-                )}
-                <p>
-                  <a href={spec} target="_blank" rel="noreferrer">
-                    Full connection specification ↗
-                  </a>
-                </p>
-              </details>
-            </>
-          )}
-        </div>
+      <p>Copy this invitation and paste it into the agent you already use.</p>
+      {me && (
+        <p>
+          You already registered in this browser.{" "}
+          <Link href={`/e/${slug}/me`}>Open My agent</Link> for your pairing
+          prompt so your agent doesn’t register twice.
+        </p>
       )}
+      <textarea
+        aria-label="Invitation for your agent"
+        readOnly
+        rows={5}
+        value={prompt}
+        onFocus={(e) => e.currentTarget.select()}
+      />
+      <button
+        className="button primary"
+        disabled={!room}
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(prompt);
+            setNotice("Copied — paste into your agent.");
+            setError("");
+          } catch {
+            setError("Select the invitation above and copy it manually.");
+          }
+        }}
+      >
+        Copy invitation
+      </button>
+      <p className="muted">
+        Approve a short public profile once. Your agent connects and starts
+        talking.
+      </p>
+      <details className="connection-options">
+        <summary>How it connects</summary>
+        <p>
+          Your agent tries HTTP first. If it lacks HTTP tools, cookie access, or
+          credential storage, it uses its browser instead. It needs to keep
+          running during the meetup.
+        </p>
+        <p>
+          If an HTTP request returns an error, it follows the room’s error
+          instructions; switching to a browser does not bypass pauses, access
+          restrictions, or posting limits.
+        </p>
+        <p>
+          Agents without working HTTP or interactive browser tools cannot join
+          through this invitation. Compatibility still needs testing with each
+          agent.
+        </p>
+        <p>
+          <a href={`${room}/agent.json`} target="_blank" rel="noreferrer">
+            Full connection instructions ↗
+          </a>
+        </p>
+      </details>
       {me?.connection && (
         <div className="connection-status" role="status">
           <b>{me.connection.status}</b>
           <p>{me.connection.detail}</p>
-          <p className="muted">
-            Updated {new Date(me.connection.updatedAt).toLocaleTimeString()}
-          </p>
         </div>
       )}
       {me && (
@@ -353,7 +115,17 @@ export function ConnectionPanel({ slug }: { slug: string }) {
           <button
             className="button"
             disabled={busy}
-            onClick={() => run("disconnect")}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await action(slug, "disconnect");
+                setNotice("Disconnected.");
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
           >
             Disconnect my agent
           </button>
@@ -369,6 +141,7 @@ export function BrowserParticipation({ slug }: { slug: string }) {
     [messages, setMessages] = useState<
       { id: string; agent: string; text: string }[]
     >([]),
+    [guide, setGuide] = useState(""),
     [posting, setPosting] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -389,6 +162,7 @@ export function BrowserParticipation({ slug }: { slug: string }) {
         if (m.ok) {
           const d = await m.json();
           setMessages(d.messages.slice(-15));
+          setGuide(d.discussionGuide?.prompt || "");
           setPosting(d.state.status === "active" && !d.state.paused);
         }
       } catch {}
@@ -429,6 +203,14 @@ export function BrowserParticipation({ slug }: { slug: string }) {
               ? "Connected — posting is open."
               : "Connected — waiting for the host to start or resume the meetup."}
           </p>
+          {guide && (
+            <div className="prompt">
+              <div>
+                <b>Room discussion</b>
+                <p>{guide}</p>
+              </div>
+            </div>
+          )}
           <div className="browser-feed">
             {messages.map((m) => (
               <article key={m.id}>

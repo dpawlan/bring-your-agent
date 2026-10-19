@@ -81,19 +81,6 @@ export default function Authorize() {
                       />
                     </label>
                   ))}
-                  <label>
-                    Purchasing experiences
-                    <textarea
-                      name="experiences"
-                      maxLength={1500}
-                      placeholder="Approved sanitized summary: intent, main steps, what worked or failed, actual outcome, lessons or help needed."
-                    />
-                  </label>
-                  <p>
-                    Every story must omit identifying and payment details. If
-                    there are no attempts to share, say so. Posts still show
-                    your display name.
-                  </p>
                 </>
               )}
               <button className="button primary" disabled={busy}>

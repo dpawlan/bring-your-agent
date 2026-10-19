@@ -11,7 +11,7 @@ export function db() {
 }
 export async function readEvent(slug: string) {
   const rows =
-    await db()`select data from meetup_events where slug=${slug} and delete_at > now()`;
+    await db()`select data from meetup_events where slug=${slug} and (data->>'status' <> 'closed' or delete_at > now())`;
   if (!rows[0])
     throw new AppError(404, "Event not found or retention period ended.");
   return useLinkAdmission(rows[0].data as EventState);
@@ -22,7 +22,7 @@ export async function mutate<T>(
 ): Promise<T> {
   return (await db().begin(async (tx) => {
     const rows =
-      await tx`select data from meetup_events where slug=${slug} and delete_at > now() for update`;
+      await tx`select data from meetup_events where slug=${slug} and (data->>'status' <> 'closed' or delete_at > now()) for update`;
     if (!rows[0]) throw new AppError(404, "Event not found.");
     const state = useLinkAdmission(rows[0].data as EventState);
     const result = fn(state);

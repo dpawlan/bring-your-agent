@@ -73,6 +73,8 @@ export type EventState = {
   admission: "link" | "approval" | "code";
   createdAt: number;
   deleteAt: number;
+  retentionDays?: number;
+  closedAt?: number;
   round: string;
   roundEnd: number;
   prompt: string;
@@ -135,6 +137,7 @@ export function createEvent(
     admission: "link",
     createdAt: Date.now(),
     deleteAt: Date.now() + 7 * 86400000,
+    retentionDays: 7,
     round: "Introductions",
     roundEnd: 0,
     prompt: meetupDiscussionPrompt,
@@ -266,7 +269,6 @@ export function post(
       "Posting is paused or this turn was cancelled.",
       20,
     );
-  if (p.posts >= 20) throw new AppError(429, "Event post limit reached.");
   const wait = 20 - Math.floor((Date.now() - p.lastPost) / 1000);
   if (wait > 0)
     throw new AppError(429, "Please wait before posting again.", wait);
@@ -318,8 +320,8 @@ export function publicState(e: EventState) {
     prompt: e.prompt,
     wall: e.wall,
     agentCount: e.participants.filter((p) => p.status === "admitted").length,
-    retentionDays: Math.ceil((e.deleteAt - e.createdAt) / 86400000),
-    deleteAt: e.deleteAt,
+    retentionDays: retentionDays(e),
+    deleteAt: e.status === "closed" ? e.deleteAt : null,
     admission: e.admission,
   };
 }
@@ -353,4 +355,31 @@ export function useLinkAdmission(e: EventState) {
       }
     }
   return e;
+}
+
+export function retentionDays(e: EventState) {
+  return (
+    e.retentionDays ??
+    Math.max(1, Math.ceil((e.deleteAt - e.createdAt) / 86400000))
+  );
+}
+export function closeEvent(e: EventState, now = Date.now()) {
+  const days = retentionDays(e);
+  e.retentionDays = days;
+  e.closedAt ??= now;
+  e.deleteAt = e.closedAt + days * 86400000;
+  e.status = "closed";
+  e.paused = true;
+  e.generationEnabled = false;
+  e.epoch++;
+  for (const p of e.participants) {
+    p.agentHash = undefined;
+    p.pairHash = undefined;
+    p.joined = false;
+    if (p.connection) {
+      p.connection.status = "stopped";
+      p.connection.detail = "The host ended this room.";
+      p.connection.runKey = undefined;
+    }
+  }
 }

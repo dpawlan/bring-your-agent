@@ -1,7 +1,14 @@
+import {
+  getDiscussionGuide,
+  agentInvitation,
+  roomLimits,
+} from "../src/lib/participation";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   createEvent,
+  closeEvent,
+  publicState,
   onboard,
   admit,
   pair,
@@ -102,11 +109,18 @@ test("limits and foreign replies enforced", () => {
   assert.throws(() => post(e, p, { text: "Too soon", clientId: "hello-id-2" }));
   p.lastPost = 0;
   p.posts = 20;
-  assert.throws(() =>
-    post(e, p, { text: "Over quota", clientId: "hello-id-3" }),
+  assert.equal(
+    post(e, p, { text: "Past the old quota", clientId: "hello-id-3" }).status,
+    "published",
+  );
+  p.lastPost = 0;
+  p.posts = 10000;
+  assert.equal(
+    post(e, p, { text: "Still open", clientId: "hello-id-4" }).status,
+    "published",
   );
 });
-test("twenty-agent cap and 400-message session preserve unique ordering", () => {
+test("twenty-agent capacity preserves ordering beyond the old 400-message cap", () => {
   const e = createEvent("test", "Meetup", "host");
   e.status = "active";
   e.paused = false;
@@ -115,13 +129,13 @@ test("twenty-agent cap and 400-message session preserve unique ordering", () => 
     const { p } = onboard(e, { ...brief, human: `Person ${i}` });
     admit(e, p);
     p.joined = true;
-    for (let n = 0; n < 20; n++) {
+    for (let n = 0; n < 30; n++) {
       p.lastPost = 0;
       post(e, p, { text: `Post ${n}`, clientId: `agent-${i}-message-${n}` });
     }
   }
-  assert.equal(e.messages.length, 400);
-  assert.equal(new Set(e.messages.map((m) => m.cursor)).size, 400);
+  assert.equal(e.messages.length, 600);
+  assert.equal(new Set(e.messages.map((m) => m.cursor)).size, 600);
   assert.throws(() => onboard(e, brief), /room is full/);
 });
 test("viewing room stays live and closure rejects credentials", () => {
@@ -174,4 +188,60 @@ test("approved purchasing summaries survive onboarding and stay optional for exi
   onboard(e, brief);
   assert.equal(e.participants[1].brief.experiences, undefined);
   assert.throws(() => onboard(e, { ...brief, experiences: "x".repeat(1501) }));
+});
+
+test("discussion starts with work and asks about purchasing only after two agents speak", () => {
+  const { e, p } = setup();
+  assert.equal(getDiscussionGuide(e).phase, "introductions");
+  assert.doesNotMatch(
+    agentInvitation("https://example.com/e/test"),
+    /purchas|payment/i,
+  );
+  post(e, p, {
+    text: "My human works on community tools",
+    clientId: "guide-intro-one",
+  });
+  e.messages.push({
+    ...e.messages[0],
+    id: "host-note",
+    participantId: "host",
+    host: true,
+  });
+  assert.equal(getDiscussionGuide(e).phase, "introductions");
+  const { p: other } = onboard(e, { ...brief, agent: "Second agent" });
+  other.joined = true;
+  post(e, other, {
+    text: "My human can offer research help",
+    clientId: "guide-intro-two",
+  });
+  assert.equal(getDiscussionGuide(e).phase, "discussion");
+  assert.match(getDiscussionGuide(e).prompt, /purchase/);
+  e.messages.at(-1)!.status = "hidden";
+  assert.equal(getDiscussionGuide(e).phase, "introductions");
+});
+
+test("room has no timed expiry until host closure; retention begins at closure", () => {
+  const { e, p } = setup();
+  const token = exchange(e, pair(e, p));
+  e.createdAt = Date.now() - 30 * 86400000;
+  e.deleteAt = Date.now() - 23 * 86400000;
+  assert.equal(publicState(e).deleteAt, null);
+  assert.equal(roomLimits.maxPosts, null);
+  assert.equal(roomLimits.sessionMinutes, null);
+  p.posts = 1000;
+  p.lastPost = 0;
+  post(e, p, {
+    text: "This month-old room is still open",
+    clientId: "long-open-room",
+  });
+  const now = Date.now();
+  closeEvent(e, now);
+  assert.equal(e.deleteAt, now + 7 * 86400000);
+  assert.equal(p.joined, false);
+  assert.throws(() => participant(e, token, "agent"));
+  assert.throws(() =>
+    post(e, p, { text: "Closed", clientId: "closed-room-message" }),
+  );
+  closeEvent(e, now + 100000);
+  assert.equal(e.deleteAt, now + 7 * 86400000);
 });

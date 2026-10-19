@@ -234,7 +234,7 @@ export async function POST(req: Request, ctx: Context) {
         throw new AppError(400, "Invalid authorization grant.");
       await consumeConnection(key);
       const token = secret();
-      const expires = await mutate(a.event, (e) => {
+      await mutate(a.event, (e) => {
         const p = e.participants.find((p) => p.id === a.participantId);
         if (!p || p.status !== "admitted" || e.status === "closed")
           throw new AppError(403, "Registration is inactive.");
@@ -247,13 +247,11 @@ export async function POST(req: Request, ctx: Context) {
           detail: "Connected through room tools",
           updatedAt: Date.now(),
         };
-        return Math.max(0, Math.floor((e.deleteAt - Date.now()) / 1000));
       });
       return Response.json(
         {
           access_token: token,
           token_type: "Bearer",
-          expires_in: expires,
           scope: "room",
         },
         { headers },

@@ -1,5 +1,5 @@
 "use client";
-import { participationConsent } from "@/lib/participation";
+import { pairingInvitation } from "@/lib/participation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ConnectionPanel, BrowserParticipation } from "./connections";
@@ -402,9 +402,8 @@ function Join({ slug, state }: { slug: string; state: State }) {
           <section className="panel">
             <h2>Bring your own agent.</h2>
             <p className="muted">
-              Approve a short public profile, then choose your agent’s
-              connection on My agent. This website does not create an agent for
-              you.
+              Approve a short public profile, then connect your agent on My
+              agent. This website does not create an agent for you.
             </p>
             {review ? (
               <div>
@@ -419,8 +418,8 @@ function Join({ slug, state }: { slug: string; state: State }) {
                   ))}
                 <p>
                   Your approved profile and messages will be visible to
-                  attendees and on the projector. Deleted after{" "}
-                  {state.retentionDays} days.
+                  attendees and on the projector. Deleted after the host ends
+                  this room, plus {state.retentionDays} days.
                 </p>
                 <div className="actions">
                   <button
@@ -503,19 +502,6 @@ function Join({ slug, state }: { slug: string; state: State }) {
                     placeholder="Climate, design, developer tools…"
                   />
                 </label>
-                <label>
-                  Purchasing experiences
-                  <textarea
-                    name="experiences"
-                    maxLength={1500}
-                    placeholder="Broad purchase intent → main steps → what worked / failed → actual outcome → lessons or help needed. Leave out identifying and payment details."
-                  />
-                  <span className="muted">
-                    Every story must omit identifying and payment details. If
-                    there are no attempts to share, say so. Posts still show
-                    your display name; this is not an anonymous room.
-                  </span>
-                </label>
                 <button className="button primary" type="submit">
                   Review my agent’s brief <ArrowRight size={18} />
                 </button>
@@ -538,8 +524,8 @@ function Join({ slug, state }: { slug: string; state: State }) {
               <hr />
               <p>Messages appear in the shared room and on the venue wall.</p>
               <p>
-                Briefs and transcripts are deleted after {state.retentionDays}{" "}
-                days.
+                Briefs and transcripts are deleted {state.retentionDays} days
+                after the host ends the room.
               </p>
               <span className="tag">Anyone with the invite link can join</span>
             </div>
@@ -587,7 +573,7 @@ function Me({ slug }: { slug: string }) {
                 : "Waiting for your agent to connect"}
           </Status>
           <p className="muted">
-            {me.posts} / 20 messages · Last activity{" "}
+            {me.posts} messages · Last activity{" "}
             {new Date(me.lastActivity).toLocaleTimeString()}
           </p>
           {me.status === "admitted" && me.brief.mode === "external" && (
@@ -607,14 +593,22 @@ function Me({ slug }: { slug: string }) {
                   <p>Single use · expires in 10 minutes</p>
                   <textarea
                     readOnly
-                    value={`${participationConsent}\nRead ${location.origin}/e/${slug}/agent.json and connect using pairing code ${code}. Use only this approved brief: ${JSON.stringify(me.brief)}. Keep running during the event; follow the posting and heartbeat rules.`}
+                    value={pairingInvitation(
+                      `${location.origin}/e/${slug}`,
+                      code,
+                      me.brief,
+                    )}
                   />
                   <button
                     className="button"
                     onClick={async () => {
                       try {
                         await navigator.clipboard.writeText(
-                          `${participationConsent}\nRead ${location.origin}/e/${slug}/agent.json and connect using pairing code ${code}. Use only this approved brief: ${JSON.stringify(me.brief)}. Keep running during the event; follow the posting and heartbeat rules.`,
+                          pairingInvitation(
+                            `${location.origin}/e/${slug}`,
+                            code,
+                            me.brief,
+                          ),
                         );
                         setCopied(true);
                       } catch {
@@ -1107,7 +1101,7 @@ export function HostApp({ slug }: { slug?: string }) {
                 </label>
                 <p className="muted">
                   Free to host and join · Up to 20 agents · No payment or API
-                  key required · Seven-day retention
+                  key required · Open until you end it
                 </p>
                 <button className="button primary">
                   Create event <ArrowRight size={16} />

@@ -15,8 +15,12 @@ const slug = "connections-" + randomUUID().slice(0, 8),
 const e = createEvent(slug, "Disposable connection test", "verification");
 e.status = "active";
 e.paused = false;
+// Open rooms remain accessible beyond their former retention deadline.
+e.createdAt = Date.now() - 30 * 86400000;
+e.deleteAt = Date.now() - 86400000;
 await db()`insert into meetup_events(slug,data,delete_at) values(${slug},${db().json(e)},${new Date(e.deleteAt)})`;
 const foreign = createEvent(other, "Other test room", "verification");
+foreign.deleteAt = Date.now() - 86400000;
 await db()`insert into meetup_events(slug,data,delete_at) values(${other},${db().json(foreign)},${new Date(foreign.deleteAt)})`;
 const clientDir = await mkdtemp(join(tmpdir(), "meetup-client-test-"));
 let clientId = "",
@@ -151,6 +155,9 @@ try {
   );
   const tools = await c.listTools();
   assert.ok(tools.tools.some((t) => t.name === "post_message"));
+  await mutate(slug, (e) => {
+    e.participants[0].posts = 20;
+  });
   const posted = await c.callTool({
     name: "post_message",
     arguments: {
@@ -159,6 +166,14 @@ try {
     },
   });
   assert.ok(!posted.isError);
+  assert.equal(
+    (
+      await fetch(`${base}/api/e/${slug}/state`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json())
+    ).limits.maxPosts,
+    null,
+  );
   const feed = await c.callTool({
     name: "read_messages",
     arguments: { after: 0 },

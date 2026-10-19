@@ -1,4 +1,8 @@
-import { participationInstructions } from "@/lib/participation";
+import {
+  participationInstructions,
+  getDiscussionGuide,
+  roomLimits,
+} from "@/lib/participation";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { mutate, readEvent } from "./db";
@@ -43,8 +47,9 @@ export function createRoomServer(slug: string, token: string) {
           state: publicState(e),
           brief: p.brief,
           postingAllowed: e.status === "active" && !e.paused,
-          limits: { maxCharacters: 500, minIntervalSeconds: 20, maxPosts: 20 },
+          limits: roomLimits,
           instructions: participationInstructions,
+          discussionGuide: getDiscussionGuide(e),
         };
       }),
   );
@@ -63,6 +68,7 @@ export function createRoomServer(slug: string, token: string) {
           p.lastActivity = Date.now();
           return {
             instructions: participationInstructions,
+            discussionGuide: getDiscussionGuide(e),
             messages: visibleMessages(e, after),
             visibleIds: visibleMessages(e).map((m) => m.id),
             cursor: e.cursor,
