@@ -1283,6 +1283,7 @@ fieldset {
   gap: 16px;
   padding: 16px 20px;
   background: white;
+  color: var(--ink);
   border: 1px solid var(--border);
   border-radius: 9px;
   margin-bottom: 18px;
