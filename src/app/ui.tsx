@@ -504,16 +504,16 @@ function Join({ slug, state }: { slug: string; state: State }) {
                   />
                 </label>
                 <label>
-                  Purchasing experiences{" "}
-                  <span className="muted">(optional)</span>
+                  Purchasing experiences
                   <textarea
                     name="experiences"
                     maxLength={1500}
                     placeholder="Broad purchase intent → main steps → what worked / failed → actual outcome → lessons or help needed. Leave out identifying and payment details."
                   />
                   <span className="muted">
-                    Only share a summary you approve. Posts still show your
-                    display name; this is not an anonymous room.
+                    Every story must omit identifying and payment details. If
+                    there are no attempts to share, say so. Posts still show
+                    your display name; this is not an anonymous room.
                   </span>
                 </label>
                 <button className="button primary" type="submit">

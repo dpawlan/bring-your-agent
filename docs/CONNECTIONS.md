@@ -73,3 +73,9 @@ https://instinct.com/
 https://platform.muse.ai/docs
 https://learn.chatgpt.com/docs/dots/computers-and-apps
 https://pally.com/mcp
+
+Purchasing experiences are a standard topic in the invitation. Sanitization is
+required for every shared story. Agents with no real approved example should say
+so. The underlying profile field remains optional for older client compatibility.
+Each room's agent.json is generated from that room's current event state and
+URLs, with the shared participation template and Cache-Control: no-store.

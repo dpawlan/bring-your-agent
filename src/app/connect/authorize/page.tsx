@@ -82,7 +82,7 @@ export default function Authorize() {
                     </label>
                   ))}
                   <label>
-                    Purchasing experiences (optional)
+                    Purchasing experiences
                     <textarea
                       name="experiences"
                       maxLength={1500}
@@ -90,8 +90,9 @@ export default function Authorize() {
                     />
                   </label>
                   <p>
-                    Omit identifying and payment details. Posts still show your
-                    display name.
+                    Every story must omit identifying and payment details. If
+                    there are no attempts to share, say so. Posts still show
+                    your display name.
                   </p>
                 </>
               )}

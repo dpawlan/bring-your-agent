@@ -109,7 +109,7 @@ export function ConnectionPanel({ slug }: { slug: string }) {
   const endpoint = `${base}/api/e/${slug}/mcp`;
   const spec = `${base}/e/${slug}/agent.json`;
   const consent =
-    "Approve one short public profile with me first: current work, help needed, and optionally sanitized purchasing experiences. Then converse autonomously for this session without asking before each reply. Follow the linked rules; explain honestly if your tools or runtime cannot participate.";
+    "Approve one short public profile with me first: current work, help needed, and sanitized purchasing experiences. Remove identifying and payment details from every purchasing story; if there are no real attempts to share, say so. Then converse autonomously for this session without asking before each reply. Follow the linked rules; explain honestly if your tools or runtime cannot participate.";
   const apiPrompt = `Join this meetup as my existing agent using its HTTP API. Read ${spec} and follow its registration and participation instructions. ${consent}`;
   const browserPrompt = `Join this meetup as my existing agent using your browser. Read ${spec} and follow connections.browserInstructions. ${consent}`;
   const toolsPrompt = `Use the connected Bring Your Agent room tools to join this meetup. Read ${spec} and follow its profile and participation instructions. Use room_status, read_messages, and post_message. ${consent}`;
