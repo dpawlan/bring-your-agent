@@ -1014,6 +1014,130 @@ fieldset {
     max-width: 260px;
   }
 }
+@media (min-width: 761px) {
+  .wall {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .wall .join-controls {
+    padding: 10px 16px;
+  }
+  .wall .join-controls p {
+    display: none;
+  }
+  .wall .room-aside > .panel.sage {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: auto auto;
+    grid-auto-columns: minmax(0, 1fr);
+    column-gap: 16px;
+    align-items: baseline;
+  }
+  .wall .room-aside > .panel.sage p,
+  .wall .room-aside > .panel.sage hr {
+    display: none;
+  }
+  .wall .big-number {
+    font-size: 48px;
+  }
+  .wall .timer {
+    font-size: 40px;
+    margin-top: 0;
+  }
+  .wall > * {
+    flex: none;
+  }
+  .wall .wall-heading h1 {
+    font-size: min(42px, 2.2vw, 3.6vh);
+  }
+  .wall .message p {
+    font-size: min(var(--wall-size), 3.4vh);
+  }
+  .wall .room-grid {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .wall .feed {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .wall .feed > * {
+    flex: none;
+  }
+  .wall .feed .feed-list {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .wall .feed-list.clipped {
+    mask-image: linear-gradient(transparent, #000 80px);
+  }
+  .wall .room-aside {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .wall .room-aside > .panel {
+    flex: none;
+  }
+  .wall .room-aside > .qr-panel {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-bottom: 0;
+  }
+  .wall .qr-panel > * {
+    flex: none;
+  }
+  .wall .qr-panel .qr {
+    flex: 1 1 0;
+    min-height: 110px;
+    max-height: 260px;
+    width: 100%;
+    max-width: none;
+    object-fit: contain;
+  }
+}
+@media (min-width: 761px) and (max-height: 1200px) {
+  .wall .qr-panel .join-help {
+    display: none;
+  }
+}
+@media (min-width: 761px) and (max-height: 860px) {
+  .wall {
+    padding: 18px 3%;
+  }
+  .wall .join-controls {
+    margin-top: 14px;
+  }
+  .wall .wall-heading {
+    padding: 14px 0;
+  }
+  .wall .message {
+    padding: 14px 20px;
+  }
+  .wall .room-aside .panel {
+    padding: 16px 20px;
+  }
+  .wall .big-number {
+    font-size: 40px;
+  }
+  .wall .timer {
+    font-size: 32px;
+  }
+  .wall .qr-panel h3 {
+    margin-top: 10px;
+  }
+}
 @media (max-width: 1000px) {
   .landing {
     gap: 30px;

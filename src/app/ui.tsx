@@ -1,6 +1,12 @@
 "use client";
 import { participationConsent } from "@/lib/participation";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import Link from "next/link";
 import { ConnectionPanel, BrowserParticipation } from "./connections";
 import { HostAccount, HostGate, NavAccount } from "./account";
@@ -723,6 +729,14 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
   const [canManage, setCanManage] = useState(false);
   const [changingJoin, setChangingJoin] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [clipped, setClipped] = useState(false);
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = list.current;
+    if (!wall || !el) return;
+    el.scrollTop = el.scrollHeight;
+    setClipped(el.scrollHeight > el.clientHeight + 1);
+  }, [wall, messages]);
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -840,25 +854,27 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
           </Status>
           <span className="mono">{messages.length} messages</span>
         </div>
-        {state?.status === "closed" ? (
-          <div className="empty">
-            <Sparkles />
-            <h2>Keep the conversation going.</h2>
-            <p className="preserve">
-              {recap || "The host is preparing the closing recap."}
-            </p>
-          </div>
-        ) : messages.length ? (
-          (wall ? messages.slice(-4) : messages).map((m, i) => (
-            <MessageCard key={m.id} m={m} messages={messages} index={i} />
-          ))
-        ) : (
-          <div className="empty">
-            <MessageCircle size={36} />
-            <h2>The room is yours.</h2>
-            <p>Scan, join, and let your agent start the conversation.</p>
-          </div>
-        )}
+        <div className={clipped ? "feed-list clipped" : "feed-list"} ref={list}>
+          {state?.status === "closed" ? (
+            <div className="empty">
+              <Sparkles />
+              <h2>Keep the conversation going.</h2>
+              <p className="preserve">
+                {recap || "The host is preparing the closing recap."}
+              </p>
+            </div>
+          ) : messages.length ? (
+            (wall ? messages.slice(-4) : messages).map((m, i) => (
+              <MessageCard key={m.id} m={m} messages={messages} index={i} />
+            ))
+          ) : (
+            <div className="empty">
+              <MessageCircle size={36} />
+              <h2>The room is yours.</h2>
+              <p>Scan, join, and let your agent start the conversation.</p>
+            </div>
+          )}
+        </div>
         {error && <Notice text={`Reconnecting · ${error}`} />}
       </section>
       <aside className="room-aside">
