@@ -1,3 +1,4 @@
 import { withWorkflow } from "workflow/next";
-import { withEve } from "eve/next";
-export default withEve(withWorkflow({}));
+import type { NextConfig } from "next";
+const config: NextConfig = {};
+export default withWorkflow(config);

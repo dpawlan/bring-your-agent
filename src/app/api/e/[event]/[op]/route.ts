@@ -1,3 +1,7 @@
+import { participationInstructions } from "@/lib/participation";
+import { start } from "workflow/api";
+import { pallyRelay } from "@/workflows/pally-relay";
+import { pallyAuthorization, inspectPally, disconnectPally } from "@/lib/pally";
 import { cookies } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -25,7 +29,12 @@ export async function GET(req: Request, ctx: Context) {
     const { event, op } = await ctx.params;
     const e = await readEvent(event);
     if (op === "public")
-      return Response.json({ ...publicState(e), prompt: "", wall: undefined });
+      return Response.json({
+        ...publicState(e),
+        prompt: "",
+        wall: undefined,
+        pallyEnabled: process.env.PALLY_ENABLED === "true",
+      });
     if (op === "me") {
       const p = participant(
         e,
@@ -34,6 +43,14 @@ export async function GET(req: Request, ctx: Context) {
       );
       return Response.json({
         brief: p.brief,
+        connection: p.connection
+          ? {
+              provider: p.connection.provider,
+              status: p.connection.status,
+              detail: p.connection.detail,
+              updatedAt: p.connection.updatedAt,
+            }
+          : undefined,
         id: p.id,
         status: p.status,
         joined: p.joined,
@@ -60,11 +77,6 @@ export async function GET(req: Request, ctx: Context) {
           }),
         ),
         messages: e.messages,
-        budget: e.budget,
-        spent: e.spent,
-        reserved: e.reserved,
-        generationEnabled: e.generationEnabled,
-        moderation: e.moderation,
         recapDraft: e.recapDraft,
         suggestions: groundedSuggestions(e),
         suggestionDrafts: e.suggestionDrafts,
@@ -74,6 +86,7 @@ export async function GET(req: Request, ctx: Context) {
     if (op === "state")
       return Response.json({
         ...publicState(e),
+        instructions: participationInstructions,
         limits: { maxCharacters: 500, minIntervalSeconds: 20, maxPosts: 20 },
         postingAllowed: e.status === "active" && !e.paused,
       });
@@ -95,6 +108,7 @@ export async function GET(req: Request, ctx: Context) {
           role === "display" ||
             new URL(req.url).searchParams.get("view") === "wall",
         ).map((m) => m.id),
+        instructions: participationInstructions,
         canManage: role === "host",
         state: publicState(e),
         recap: e.recap,
@@ -169,17 +183,6 @@ export async function POST(req: Request, ctx: Context) {
       await cookie("guest_" + event, r.token);
       return Response.json({ status: r.p.status });
     }
-    if (op === "switch-hosted") {
-      const token = (await cookies()).get("guest_" + event)?.value || "";
-      await mutate(event, (e) => {
-        const p = participant(e, token, "guest");
-        p.brief.mode = "hosted";
-        p.agentHash = undefined;
-        p.pairHash = undefined;
-        p.joined = true;
-      });
-      return Response.json({ ok: true });
-    }
     if (op === "pair") {
       const token = (await cookies()).get("guest_" + event)?.value || "";
       return Response.json({
@@ -188,6 +191,115 @@ export async function POST(req: Request, ctx: Context) {
         ),
       });
     }
+
+    if (
+      [
+        "browser-connect",
+        "browser-post",
+        "disconnect",
+        "pally-authorize",
+        "pally-start",
+      ].includes(op)
+    ) {
+      const token = (await cookies()).get("guest_" + event)?.value || "";
+      const current = await readEvent(event);
+      const guest = participant(current, token, "guest");
+      if (guest.status !== "admitted" || current.status === "closed")
+        throw new AppError(403, "This registration is inactive.");
+      if (op === "pally-authorize")
+        return Response.json({
+          url: await pallyAuthorization(
+            event,
+            guest.id,
+            new URL(req.url).origin,
+          ),
+        });
+      if (op === "pally-start") {
+        if (process.env.PALLY_ENABLED !== "true")
+          throw new AppError(
+            503,
+            "Pally production authorization is not enabled yet.",
+          );
+        await inspectPally(event, guest.id);
+        const key = secret();
+        const started = await mutate(event, (e) => {
+          const p = participant(e, token, "guest");
+          if (
+            p.connection?.runKey &&
+            Date.now() - (p.connection.startedAt || 0) < 90 * 60000
+          )
+            return false;
+          p.agentHash = undefined;
+          p.joined = true;
+          p.connection = {
+            provider: "pally",
+            status: "connected",
+            detail:
+              "Connected to your Pally. Listening for the meetup to start.",
+            updatedAt: Date.now(),
+            runKey: key,
+            startedAt: Date.now(),
+          };
+          return true;
+        });
+        if (started) {
+          try {
+            await start(pallyRelay, [event, guest.id, key]);
+          } catch {
+            await mutate(event, (e) => {
+              const p = participant(e, token, "guest");
+              if (p.connection?.runKey === key) {
+                p.connection.runKey = undefined;
+                p.connection.status = "error";
+                p.connection.detail = "Could not start listening. Try again.";
+              }
+            });
+            throw new AppError(
+              503,
+              "Could not start the Pally relay. Try again.",
+            );
+          }
+        }
+        return Response.json({ connected: true });
+      }
+      if (op === "disconnect") {
+        await mutate(event, (e) => {
+          const p = participant(e, token, "guest");
+          p.joined = false;
+          p.agentHash = undefined;
+          p.pairHash = undefined;
+          p.connection = {
+            provider: p.connection?.provider || "external",
+            status: "disconnected",
+            detail: "Disconnected by you.",
+            updatedAt: Date.now(),
+          };
+        });
+        if (guest.connection?.provider === "pally")
+          await disconnectPally(event, guest.id);
+        return Response.json({ disconnected: true });
+      }
+      return Response.json(
+        await mutate(event, (e) => {
+          const p = participant(e, token, "guest");
+          if (op === "browser-post") {
+            if (p.connection?.provider !== "browser")
+              throw new AppError(403, "Connect browser participation first.");
+            return post(e, p, body);
+          }
+          p.agentHash = undefined;
+          p.joined = true;
+          p.connection = {
+            provider: "browser",
+            status: "connected",
+            detail:
+              "Browser participation enabled. Your agent can post from My agent.",
+            updatedAt: Date.now(),
+          };
+          return { connected: true };
+        }),
+      );
+    }
     if (op === "exchange")
       return Response.json({
         credential: await mutate(event, (e) =>
@@ -195,18 +307,6 @@ export async function POST(req: Request, ctx: Context) {
         ),
         expires: "event-close",
       });
-    if (op === "display-pair") {
-      const token = z.string().parse(body.code);
-      const e = await readEvent(event);
-      if (
-        !e.displays.some(
-          (d) => d.hash === hash(token) && d.expires > Date.now(),
-        )
-      )
-        throw new AppError(401, "Display code invalid or expired.");
-      await cookie("display_" + event, token);
-      return Response.json({ ok: true });
-    }
     if (["join", "post", "heartbeat", "leave"].includes(op)) {
       return Response.json(
         await mutate(event, (e) => {
@@ -217,7 +317,15 @@ export async function POST(req: Request, ctx: Context) {
             p.joined = false;
           } else {
             p.lastActivity = Date.now();
-            if (op === "join") p.joined = true;
+            if (op === "join") {
+              p.joined = true;
+              p.connection = {
+                provider: "api",
+                status: "connected",
+                detail: "Agent connected through the room API.",
+                updatedAt: Date.now(),
+              };
+            }
           }
           return { ok: true };
         }),
@@ -305,25 +413,8 @@ export async function POST(req: Request, ctx: Context) {
             e.paused = Boolean(body.value);
             e.epoch++;
             break;
-          case "generation":
-            e.generationEnabled = Boolean(body.value);
-            e.epoch++;
-            break;
           case "join-link":
             e.wall.showJoinLink = z.boolean().parse(body.value);
-            break;
-          case "freeze":
-            e.wall.frozen = Boolean(body.value);
-            e.wall.freezeCursor = e.cursor;
-            break;
-          case "holding":
-            e.wall.holding = Boolean(body.value);
-            break;
-          case "size":
-            e.wall.size = z.number().min(24).max(56).parse(body.value);
-            break;
-          case "theme":
-            e.wall.theme = z.enum(["dark", "light"]).parse(body.value);
             break;
           case "pin":
             e.wall.pinned = m?.status === "published" ? m.id : undefined;
@@ -334,12 +425,6 @@ export async function POST(req: Request, ctx: Context) {
               e.cursor++;
               e.recap = "";
               e.recapDraft = "";
-            }
-            break;
-          case "approve":
-            if (m?.status === "pending") {
-              m.status = "published";
-              m.cursor = ++e.cursor;
             }
             break;
           case "round":
@@ -365,25 +450,6 @@ export async function POST(req: Request, ctx: Context) {
             break;
           case "prompt":
             e.prompt = z.string().trim().min(1).max(500).parse(body.value);
-            break;
-          case "moderation":
-            e.moderation = z.enum(["reviewed", "live"]).parse(body.value);
-            break;
-          case "entry":
-            e.admission = body.value === "code" ? "code" : "approval";
-            if (e.admission === "code")
-              e.entryHash = hash(z.string().min(6).max(100).parse(body.code));
-            break;
-          case "display": {
-            const code = secret();
-            e.displays.push({
-              hash: hash(code),
-              expires: Date.now() + 12 * 3600000,
-            });
-            return { code };
-          }
-          case "revoke-displays":
-            e.displays = [];
             break;
           case "close":
             e.status = "closed";
@@ -435,14 +501,6 @@ export async function POST(req: Request, ctx: Context) {
         return { ok: true };
       });
       return Response.json(result);
-    }
-    if (op === "coordinator") {
-      const e = await readEvent(event);
-      owner(e, id);
-      const { start } = await import("workflow/api");
-      const { coordinate } = await import("@/lib/coordinator");
-      const run = await start(coordinate, [event]);
-      return Response.json({ runId: run.runId });
     }
     throw new AppError(404, "Unknown operation.");
   } catch (e) {

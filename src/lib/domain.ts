@@ -1,3 +1,4 @@
+import { meetupDiscussionPrompt } from "./participation";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 export const briefSchema = z.object({
@@ -7,7 +8,8 @@ export const briefSchema = z.object({
   ask: z.string().trim().min(1).max(300),
   offer: z.string().trim().min(1).max(300),
   interests: z.string().max(300).default(""),
-  mode: z.enum(["hosted", "external"]),
+  experiences: z.string().trim().max(1500).optional(),
+  mode: z.literal("external"),
   consent: z.literal(true),
 });
 export type Brief = z.infer<typeof briefSchema>;
@@ -21,6 +23,18 @@ export type Participant = {
   agentHash?: string;
   joined: boolean;
   eveSession?: string;
+  connection?: {
+    provider: string;
+    status: string;
+    detail: string;
+    updatedAt: number;
+    runKey?: string;
+    startedAt?: number;
+    lastCursor?: number;
+    pending?: string;
+    busyUntil?: number;
+    turn?: string;
+  };
   lastActivity: number;
   lastPost: number;
   posts: number;
@@ -56,7 +70,7 @@ export type EventState = {
   epoch: number;
   moderation: "reviewed" | "live";
   entryHash?: string;
-  admission: "approval" | "code";
+  admission: "link" | "approval" | "code";
   createdAt: number;
   deleteAt: number;
   round: string;
@@ -117,13 +131,13 @@ export function createEvent(
     paused: true,
     generationEnabled: false,
     epoch: 0,
-    moderation: "reviewed",
-    admission: "approval",
+    moderation: "live",
+    admission: "link",
     createdAt: Date.now(),
     deleteAt: Date.now() + 7 * 86400000,
     round: "Introductions",
     roundEnd: 0,
-    prompt: "What are you building, and what could someone here help you with?",
+    prompt: meetupDiscussionPrompt,
     wall: {
       showJoinLink: true,
       frozen: false,
@@ -164,6 +178,7 @@ export function participant(
   return p;
 }
 export function admit(e: EventState, p: Participant) {
+  if (p.status === "admitted") return;
   if (e.participants.filter((p) => p.status === "admitted").length >= 20)
     throw new AppError(409, "The room is full (20 agents).");
   p.status = "admitted";
@@ -173,24 +188,19 @@ export function onboard(e: EventState, input: unknown, code?: string) {
   if (e.participants.filter((p) => p.status !== "revoked").length >= 100)
     throw new AppError(429, "Registration is full. Ask the host.");
   const brief = briefSchema.parse(input);
-  if (
-    e.admission === "code" &&
-    (!e.entryHash || hash(code || "") !== e.entryHash)
-  )
-    throw new AppError(403, "Incorrect event entry code.");
   const token = secret();
   const p: Participant = {
     id: randomUUID(),
     brief,
     status: "pending",
     guestHash: hash(token),
-    joined: brief.mode === "hosted",
+    joined: false,
     lastActivity: Date.now(),
     lastPost: 0,
     posts: 0,
     lastTurn: 0,
   };
-  if (e.admission === "code") admit(e, p);
+  admit(e, p);
   e.participants.push(p);
   return { p, token };
 }
@@ -219,6 +229,12 @@ export function exchange(e: EventState, code: string) {
   const token = secret();
   p.pairHash = undefined;
   p.agentHash = hash(token);
+  p.connection = {
+    provider: "api",
+    status: "authorized",
+    detail: "Credential exchanged; waiting for agent to join.",
+    updatedAt: Date.now(),
+  };
   return token;
 }
 export function post(
@@ -271,7 +287,7 @@ export function post(
     text: data.text,
     replyTo: data.replyTo,
     createdAt: Date.now(),
-    status: e.moderation === "reviewed" ? "pending" : "published",
+    status: "published",
     clientId: data.clientId,
   };
   e.messages.push(m);
@@ -281,12 +297,7 @@ export function post(
 }
 export function visibleMessages(e: EventState, after = 0, wall = false) {
   return e.messages
-    .filter(
-      (m) =>
-        m.status === "published" &&
-        m.cursor > after &&
-        (!wall || !e.wall.frozen || m.cursor <= e.wall.freezeCursor),
-    )
+    .filter((m) => m.status === "published" && m.cursor > after)
     .map((m) => ({
       ...m,
       replyTo: e.messages.some(
@@ -312,41 +323,6 @@ export function publicState(e: EventState) {
     admission: e.admission,
   };
 }
-export function reserveTurn(e: EventState, id: string) {
-  const existing = e.reservations.find((r) => r.id === id);
-  if (existing) return existing.settled ? null : existing;
-  if (
-    e.status !== "active" ||
-    e.paused ||
-    !e.generationEnabled ||
-    e.reservations.filter((r) => !r.settled).length >= e.concurrency
-  )
-    return null;
-  const amount = 0.05;
-  if (e.spent + e.reserved + amount > e.budget) return null;
-  const p = e.participants
-    .filter(
-      (p) =>
-        p.status === "admitted" &&
-        p.brief.mode === "hosted" &&
-        p.posts < 20 &&
-        Date.now() - p.lastPost >= 20000,
-    )
-    .sort((a, b) => a.lastTurn - b.lastTurn)[0];
-  if (!p) return null;
-  p.lastTurn = p.lastActivity = Date.now();
-  const r = { id, participantId: p.id, amount, epoch: e.epoch, settled: false };
-  e.reserved += amount;
-  e.reservations.push(r);
-  return r;
-}
-export function settle(e: EventState, id: string, cost: number) {
-  const r = e.reservations.find((r) => r.id === id);
-  if (!r || r.settled) return;
-  e.reserved = Math.max(0, e.reserved - r.amount);
-  e.spent += cost;
-  r.settled = true;
-}
 export function groundedSuggestions(e: EventState) {
   return e.suggestions
     .map((s) => ({
@@ -363,4 +339,18 @@ export function groundedSuggestions(e: EventState) {
           e.messages.some((m) => m.id === id && m.status === "published"),
         ),
     );
+}
+
+// Existing invite links retain access; revoked guests are never readmitted.
+export function useLinkAdmission(e: EventState) {
+  e.admission = "link";
+  let count = e.participants.filter((p) => p.status === "admitted").length;
+  if (e.status !== "closed")
+    for (const p of e.participants) {
+      if (p.status === "pending" && count < 20) {
+        p.status = "admitted";
+        count++;
+      }
+    }
+  return e;
 }

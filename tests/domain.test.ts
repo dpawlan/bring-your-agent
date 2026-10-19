@@ -9,8 +9,7 @@ import {
   participant,
   post,
   visibleMessages,
-  reserveTurn,
-  settle,
+  useLinkAdmission,
 } from "../src/lib/domain";
 const brief = {
   human: "Maya",
@@ -70,6 +69,7 @@ test("two independent agents exchange credentials, read and reply with retry ded
 test("pending and hidden messages cannot be read or replied to", () => {
   const { e, p } = setup();
   const m = post(e, p, { text: "Pending", clientId: "pending-one" });
+  m.status = "pending";
   assert.equal(visibleMessages(e).length, 0);
   p.lastPost = 0;
   assert.throws(() =>
@@ -122,32 +122,56 @@ test("twenty-agent cap and 400-message session preserve unique ordering", () => 
   }
   assert.equal(e.messages.length, 400);
   assert.equal(new Set(e.messages.map((m) => m.cursor)).size, 400);
-  const { p } = onboard(e, brief);
-  assert.throws(() => admit(e, p));
+  assert.throws(() => onboard(e, brief), /room is full/);
 });
-test("budget is reserved atomically; settled once; exhaustion stops calls", () => {
-  const { e, p } = setup();
-  p.brief.mode = "hosted";
-  e.generationEnabled = true;
-  e.budget = 0.05;
-  const r = reserveTurn(e, "turn-1");
-  assert.ok(r);
-  assert.equal(reserveTurn(e, "turn-2"), null);
-  settle(e, "turn-1", 0.05);
-  settle(e, "turn-1", 0.05);
-  assert.equal(e.spent, 0.05);
-  assert.equal(e.reserved, 0);
-  assert.equal(reserveTurn(e, "turn-3"), null);
-});
-test("freeze affects wall only and closure rejects credentials", () => {
+test("viewing room stays live and closure rejects credentials", () => {
   const { e, p } = setup();
   e.moderation = "live";
   const token = exchange(e, pair(e, p));
   e.wall.frozen = true;
   e.wall.freezeCursor = e.cursor;
   post(e, p, { text: "New message", clientId: "freeze-id" });
-  assert.equal(visibleMessages(e, 0, true).length, 0);
+  assert.equal(visibleMessages(e, 0, true).length, 1);
   assert.equal(visibleMessages(e).length, 1);
   e.status = "closed";
   assert.throws(() => participant(e, token, "agent"));
+});
+
+test("messages publish immediately even for legacy reviewed rooms", () => {
+  const { e, p } = setup();
+  e.moderation = "reviewed";
+  assert.equal(
+    post(e, p, { text: "Live message", clientId: "live-message-test" }).status,
+    "published",
+  );
+});
+test("app-created agents cannot register", () => {
+  const { e } = setup();
+  assert.throws(() => onboard(e, { ...brief, mode: "hosted" }));
+});
+
+test("invite registration is immediate and old pending guests recover without reviving revoked guests", () => {
+  const e = createEvent("invite", "Meetup", "host");
+  e.admission = "approval";
+  const p = onboard(e, brief).p;
+  assert.equal(p.status, "admitted");
+  p.status = "pending";
+  const revoked = onboard(e, { ...brief, human: "Revoked" }).p;
+  revoked.status = "revoked";
+  useLinkAdmission(e);
+  assert.equal(p.status, "admitted");
+  assert.equal(revoked.status, "revoked");
+  assert.equal(e.admission, "link");
+  assert.ok(pair(e, p));
+});
+
+test("approved purchasing summaries survive onboarding and stay optional for existing clients", () => {
+  const e = createEvent("stories", "Stories", "host");
+  const summary =
+    "Tried to buy office supplies; compared options; checkout blocked; no purchase completed. Need help with checkout reliability.";
+  onboard(e, { ...brief, experiences: summary });
+  assert.equal(e.participants[0].brief.experiences, summary);
+  onboard(e, brief);
+  assert.equal(e.participants[1].brief.experiences, undefined);
+  assert.throws(() => onboard(e, { ...brief, experiences: "x".repeat(1501) }));
 });

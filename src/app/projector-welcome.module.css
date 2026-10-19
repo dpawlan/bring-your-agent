@@ -1,0 +1,227 @@
+.display {
+  min-height: 100svh;
+  background-color: #071327;
+  background-image:
+    linear-gradient(rgba(147, 190, 255, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(147, 190, 255, 0.09) 1px, transparent 1px),
+    radial-gradient(ellipse at 85% 100%, #4b8cf0 0%, transparent 57%),
+    linear-gradient(180deg, #050d1d 0%, #112b57 45%, #285fbd 100%);
+  background-size:
+    80px 80px,
+    80px 80px,
+    100% 100%,
+    100% 100%;
+  color: #ffffff;
+  padding: 3.5vh 5vw 6vh;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, Helvetica, sans-serif;
+  position: relative;
+  box-sizing: border-box;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  align-items: center;
+}
+.brand {
+  font-size: clamp(18px, 1.8vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+.brand span {
+  color: #b9d7ff;
+}
+.event {
+  font-size: clamp(16px, 1.7vw, 30px);
+  color: #d7e7ff;
+  max-width: 55%;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 4vw;
+  flex: 1;
+  padding: 4vh 0;
+}
+.eyebrow {
+  color: #d7e7ff;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: clamp(13px, 1.3vw, 22px);
+  margin: 0 0 2vh;
+}
+.intro h1 {
+  font-size: clamp(44px, 6.1vw, 116px);
+  line-height: 1.04;
+  letter-spacing: -0.06em;
+  font-weight: 650;
+  margin: 0 0 3vh;
+  color: #ffffff;
+}
+.intro em {
+  font-style: normal;
+  color: #b9d7ff;
+}
+.description {
+  font-size: clamp(17px, 1.85vw, 36px);
+  line-height: 1.5;
+  color: #e2edff;
+  margin: 0;
+}
+.entry {
+  text-align: center;
+  min-width: 0;
+}
+.qr {
+  display: block;
+  width: min(38vw, 49vh);
+  height: auto;
+  max-width: 100%;
+  margin: auto;
+  border-radius: 12px;
+  box-shadow: 0 20px 80px rgba(0, 10, 35, 0.25);
+}
+.placeholder {
+  height: 40vh;
+  display: grid;
+  place-items: center;
+}
+.or {
+  font-size: clamp(11px, 1vw, 18px);
+  letter-spacing: 0.15em;
+  color: #d7e7ff;
+  margin: 2vh 0 0.8vh;
+}
+.address {
+  display: block;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: clamp(18px, 2.15vw, 42px);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+.address strong {
+  display: block;
+  color: #b9d7ff;
+  font-size: 1.12em;
+}
+.footer {
+  border-top: 1px solid #8ebaff66;
+  padding-top: 2.5vh;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.footer ol {
+  display: flex;
+  gap: 3vw;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: clamp(15px, 1.65vw, 32px);
+}
+.footer li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.footer b {
+  border: 1px solid #b9d7ff;
+  border-radius: 50%;
+  width: 1.7em;
+  height: 1.7em;
+  display: grid;
+  place-items: center;
+  font-size: 0.75em;
+}
+.footer > span {
+  color: #e2edff;
+  font-size: clamp(12px, 1.2vw, 22px);
+}
+.controls {
+  position: absolute;
+  right: 5vw;
+  bottom: 0.8vh;
+  display: flex;
+  gap: 14px;
+  opacity: 0.45;
+  transition: opacity 0.2s;
+}
+.controls:hover,
+.controls:focus-within {
+  opacity: 1;
+}
+.controls a,
+.controls button {
+  color: #ffffff;
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 5px;
+}
+.notice {
+  color: #fff;
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+.display:fullscreen .controls {
+  opacity: 0;
+}
+.display:fullscreen .controls:hover,
+.display:fullscreen .controls:focus-within {
+  opacity: 1;
+}
+@media (min-aspect-ratio: 2/1) {
+  .qr {
+    width: 44vh;
+  }
+  .intro h1 {
+    font-size: 10vh;
+  }
+}
+@media (max-width: 700px) {
+  .display {
+    padding: 25px 24px 65px;
+  }
+  .content {
+    grid-template-columns: 1fr;
+    gap: 30px;
+    padding: 30px 0;
+  }
+  .intro h1 {
+    font-size: 54px;
+  }
+  .intro h1 br:last-child {
+    display: none;
+  }
+  .qr {
+    width: min(75vw, 45vh);
+  }
+  .footer ol {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .footer > span {
+    display: none;
+  }
+  .controls {
+    bottom: 15px;
+  }
+  .event {
+    font-size: 16px;
+  }
+  .address {
+    font-size: 22px;
+  }
+}

@@ -1,6 +1,8 @@
 "use client";
+import { participationConsent } from "@/lib/participation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { ConnectionPanel, BrowserParticipation } from "./connections";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -22,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import QRCode from "qrcode";
+import { ProjectorWelcome } from "./projector-welcome";
 import type { Brief, Message, Suggestion } from "@/lib/domain";
 type State = {
   slug: string;
@@ -268,7 +271,7 @@ export function Landing({ slug, state }: { slug?: string; state?: State }) {
               n: "02",
               icon: <Bot />,
               title: "Let your agent work the room.",
-              text: "Connect your own, or create a temporary meetup agent. You approve the brief.",
+              text: "Connect your own agent and approve the brief it uses in this room.",
             },
             {
               n: "03",
@@ -329,6 +332,14 @@ export function EventApp({ slug, view }: { slug: string; view: string }) {
       </main>
     );
   if (view === "landing") return <Landing slug={slug} state={state} />;
+  if (view === "welcome")
+    return (
+      <ProjectorWelcome
+        slug={slug}
+        name={state.name}
+        closed={state.status === "closed"}
+      />
+    );
   if (view === "wall") return <Room slug={slug} wall />;
   return (
     <>
@@ -365,7 +376,7 @@ export function EventApp({ slug, view }: { slug: string; view: string }) {
   );
 }
 function Join({ slug, state }: { slug: string; state: State }) {
-  const [mode, setMode] = useState<"hosted" | "external">("hosted");
+  const mode = "external";
   const [review, setReview] = useState<Record<string, string> | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -380,159 +391,158 @@ function Join({ slug, state }: { slug: string; state: State }) {
     }
   }
   return (
-    <div className="join-grid">
-      <section className="panel">
-        <div className="segmented">
-          <button
-            onClick={() => setMode("hosted")}
-            aria-pressed={mode === "hosted"}
-          >
-            Create a meetup agent
-          </button>
-          <button
-            onClick={() => setMode("external")}
-            aria-pressed={mode === "external"}
-          >
-            Bring my agent
-          </button>
-        </div>
-        <p className="muted">
-          {mode === "hosted"
-            ? "An event-created agent, just for tonight. No API key needed. It has no access to your existing assistant or memories."
-            : "Connect an agent that can make authenticated HTTP requests and keep running during the event. Ordinary chats may need additional setup."}
-        </p>
-        {review ? (
-          <div>
-            <h2>This is the exact brief your agent receives.</h2>
-            {Object.entries(review)
-              .filter(([key]) => key !== "code")
-              .map(([key, value]) => (
-                <div className="brief-item" key={key}>
-                  <label>{key}</label>
-                  <p>{value || "Not provided"}</p>
-                </div>
-              ))}
-            <p>
-              Your approved profile and messages will be visible to attendees
-              and on the projector. Deleted after {state.retentionDays} days.
+    <div>
+      <ConnectionPanel slug={slug} />
+      <details className="panel" id="manual-registration" open>
+        <summary>Register your profile</summary>
+        <div className="join-grid">
+          <section className="panel">
+            <h2>Bring your own agent.</h2>
+            <p className="muted">
+              Approve a short public profile, then choose your agent’s
+              connection on My agent. This website does not create an agent for
+              you.
             </p>
-            <div className="actions">
-              <button
-                className="button primary"
-                disabled={busy}
-                onClick={activate}
+            {review ? (
+              <div>
+                <h2>This is the exact brief your agent receives.</h2>
+                {Object.entries(review)
+                  .filter(([key]) => key !== "code")
+                  .map(([key, value]) => (
+                    <div className="brief-item" key={key}>
+                      <label>{key}</label>
+                      <p>{value || "Not provided"}</p>
+                    </div>
+                  ))}
+                <p>
+                  Your approved profile and messages will be visible to
+                  attendees and on the projector. Deleted after{" "}
+                  {state.retentionDays} days.
+                </p>
+                <div className="actions">
+                  <button
+                    className="button primary"
+                    disabled={busy}
+                    onClick={activate}
+                  >
+                    Approve & register <Check size={18} />
+                  </button>
+                  <button className="button" onClick={() => setReview(null)}>
+                    Edit brief
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setReview(
+                    Object.fromEntries(new FormData(e.currentTarget)) as Record<
+                      string,
+                      string
+                    >,
+                  );
+                }}
               >
-                Approve & activate <Check size={18} />
-              </button>
-              <button className="button" onClick={() => setReview(null)}>
-                Edit brief
-              </button>
-            </div>
-          </div>
-        ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setReview(
-                Object.fromEntries(new FormData(e.currentTarget)) as Record<
-                  string,
-                  string
-                >,
-              );
-            }}
-          >
-            <div className="fields-two">
-              <label>
-                Your display name
-                <input
-                  name="human"
-                  required
-                  maxLength={60}
-                  placeholder="What should people call you?"
-                />
-              </label>
-              <label>
-                Your agent’s name
-                <input
-                  name="agent"
-                  required
-                  maxLength={60}
-                  placeholder="Give your sidekick a name"
-                />
-              </label>
-            </div>
-            <label>
-              What are you building or interested in?
-              <textarea
-                name="building"
-                required
-                maxLength={500}
-                placeholder="The thing you could happily talk about for an hour…"
-              />
-            </label>
-            <label>
-              One thing you’d love help with
-              <textarea
-                name="ask"
-                required
-                maxLength={300}
-                placeholder="A concrete question opens a better conversation."
-              />
-            </label>
-            <label>
-              One thing you can offer
-              <textarea
-                name="offer"
-                required
-                maxLength={300}
-                placeholder="A skill, an experience, a perspective…"
-              />
-            </label>
-            <label>
-              Conversation interests <span className="muted">(optional)</span>
-              <input
-                name="interests"
-                maxLength={300}
-                placeholder="Climate, design, developer tools…"
-              />
-            </label>
-            {state.admission === "code" && (
-              <label>
-                Event entry code
-                <input name="code" required minLength={6} />
-              </label>
+                <div className="fields-two">
+                  <label>
+                    Your display name
+                    <input
+                      name="human"
+                      required
+                      maxLength={60}
+                      placeholder="What should people call you?"
+                    />
+                  </label>
+                  <label>
+                    Your agent’s name
+                    <input
+                      name="agent"
+                      required
+                      maxLength={60}
+                      placeholder="Give your sidekick a name"
+                    />
+                  </label>
+                </div>
+                <label>
+                  What are you building or interested in?
+                  <textarea
+                    name="building"
+                    required
+                    maxLength={500}
+                    placeholder="The thing you could happily talk about for an hour…"
+                  />
+                </label>
+                <label>
+                  One thing you’d love help with
+                  <textarea
+                    name="ask"
+                    required
+                    maxLength={300}
+                    placeholder="A concrete question opens a better conversation."
+                  />
+                </label>
+                <label>
+                  One thing you can offer
+                  <textarea
+                    name="offer"
+                    required
+                    maxLength={300}
+                    placeholder="A skill, an experience, a perspective…"
+                  />
+                </label>
+                <label>
+                  Conversation interests{" "}
+                  <span className="muted">(optional)</span>
+                  <input
+                    name="interests"
+                    maxLength={300}
+                    placeholder="Climate, design, developer tools…"
+                  />
+                </label>
+                <label>
+                  Purchasing experiences{" "}
+                  <span className="muted">(optional)</span>
+                  <textarea
+                    name="experiences"
+                    maxLength={1500}
+                    placeholder="Broad purchase intent → main steps → what worked / failed → actual outcome → lessons or help needed. Leave out identifying and payment details."
+                  />
+                  <span className="muted">
+                    Only share a summary you approve. Posts still show your
+                    display name; this is not an anonymous room.
+                  </span>
+                </label>
+                <button className="button primary" type="submit">
+                  Review my agent’s brief <ArrowRight size={18} />
+                </button>
+              </form>
             )}
-            <button className="button primary" type="submit">
-              Review my agent’s brief <ArrowRight size={18} />
-            </button>
-          </form>
-        )}
-        {error && <Notice text={error} />}
-      </section>
-      <aside>
-        <div className="panel sage">
-          <ShieldCheck size={28} />
-          <h2>
-            A little context.
-            <br />
-            Clear boundaries.
-          </h2>
-          <p>
-            You control the information your agent gets. No personal files,
-            emails, contacts, or chat history.
-          </p>
-          <hr />
-          <p>Messages appear in the shared room and on the venue wall.</p>
-          <p>
-            Briefs and transcripts are deleted after {state.retentionDays} days.
-          </p>
-          <span className="tag">
-            {state.admission === "approval"
-              ? "The host approves each guest"
-              : "An entry code is required"}
-          </span>
+            {error && <Notice text={error} />}
+          </section>
+          <aside>
+            <div className="panel sage">
+              <ShieldCheck size={28} />
+              <h2>
+                A little context.
+                <br />
+                Clear boundaries.
+              </h2>
+              <p>
+                You control the information your agent gets. No personal files,
+                emails, contacts, or chat history.
+              </p>
+              <hr />
+              <p>Messages appear in the shared room and on the venue wall.</p>
+              <p>
+                Briefs and transcripts are deleted after {state.retentionDays}{" "}
+                days.
+              </p>
+              <span className="tag">Anyone with the invite link can join</span>
+            </div>
+          </aside>
         </div>
-      </aside>
+      </details>
     </div>
   );
 }
@@ -540,6 +550,7 @@ function Me({ slug }: { slug: string }) {
   const [me, setMe] = useState<Person & { suggestions: Suggestion[] }>();
   const [error, setError] = useState("");
   const [code, setCode] = useState("");
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     const load = () =>
       api(slug, "me")
@@ -552,120 +563,112 @@ function Me({ slug }: { slug: string }) {
   if (error) return <Notice text={`${error} Join this event first.`} />;
   if (!me) return <p>Checking your agent…</p>;
   return (
-    <div className="join-grid">
-      <section className="panel">
-        <div className="agent-heading">
-          <Avatar name={me.brief.agent} />
-          <div>
-            <h2>{me.brief.agent}</h2>
-            <p>Representing {me.brief.human}</p>
+    <div>
+      <ConnectionPanel slug={slug} />
+      <BrowserParticipation slug={slug} />
+      <div className="join-grid">
+        <section className="panel">
+          <div className="agent-heading">
+            <Avatar name={me.brief.agent} />
+            <div>
+              <h2>{me.brief.agent}</h2>
+              <p>Representing {me.brief.human}</p>
+            </div>
+            <span className="tag">Your own agent</span>
           </div>
-          <span className="tag">
-            {me.brief.mode === "hosted"
-              ? "Event-created agent"
-              : "Your connected agent"}
-          </span>
-        </div>
-        <Status>
-          {me.status === "pending"
-            ? "Waiting for host admission"
-            : me.joined
-              ? "Ready for the next conversation"
-              : "Waiting for your agent to connect"}
-        </Status>
-        <p className="muted">
-          {me.posts} / 20 messages · Last activity{" "}
-          {new Date(me.lastActivity).toLocaleTimeString()}
-        </p>
-        {me.status === "admitted" && me.brief.mode === "external" && (
-          <>
-            <button
-              className="button"
-              onClick={() =>
-                api(slug, "pair", {})
-                  .then((d) => setCode(d.code))
-                  .catch((e) => setError(e.message))
-              }
-            >
-              Generate pairing instruction
-            </button>
-            {code && (
-              <div className="pair">
-                <p>Single use · expires in 10 minutes</p>
-                <textarea
-                  readOnly
-                  value={`Read ${location.origin}/e/${slug}/agent.json and connect using pairing code ${code}. Use only this approved brief: ${JSON.stringify(me.brief)}. Keep running during the event; follow the posting and heartbeat rules.`}
-                />
-                <button
-                  className="button"
-                  onClick={() =>
-                    navigator.clipboard.writeText(
-                      `Read ${location.origin}/e/${slug}/agent.json and connect using pairing code ${code}. Approved brief: ${JSON.stringify(me.brief)}`,
-                    )
-                  }
-                >
-                  <Copy size={16} />
-                  Copy instruction
-                </button>
-              </div>
-            )}
-            <button
-              className="button"
-              onClick={() => {
-                if (
-                  confirm(
-                    "Switch to an event-created agent using this same approved brief? Your external credential will be revoked.",
-                  )
-                )
-                  api(slug, "switch-hosted", {})
-                    .then(() => location.reload())
-                    .catch((e) => setError(e.message));
-              }}
-            >
-              Switch to a hosted agent
-            </button>
-            <details>
-              <summary>Having trouble connecting?</summary>
-              <p>
-                Your agent needs HTTP access and a running process. Generate a
-                fresh code if the previous one expired. Ask the host for help,
-                or create a new hosted brief after the host revokes this
-                registration.
-              </p>
-            </details>
-          </>
-        )}
-        <hr />
-        <h3>Your approved brief</h3>
-        <p>{me.brief.building}</p>
-        <p>
-          <b>Looking for:</b> {me.brief.ask}
-        </p>
-        <p>
-          <b>Can offer:</b> {me.brief.offer}
-        </p>
-        <Link className="button primary" href={`/e/${slug}/room`}>
-          See the conversation <ArrowRight size={16} />
-        </Link>
-      </section>
-      <aside className="panel sage">
-        <Sparkles />
-        <h2>Someone worth meeting.</h2>
-        {me.suggestions?.length ? (
-          me.suggestions.map((s) => (
-            <article key={s.id}>
-              <b>{s.names?.join(" + ")}</b>
-              <p>{s.reason}</p>
-              <small>Supported by {s.messageIds.length} room messages</small>
-            </article>
-          ))
-        ) : (
-          <p>
-            Introduction suggestions will appear here as the room finds common
-            ground.
+          <Status>
+            {me.status === "pending"
+              ? "Room is full — waiting for a space"
+              : me.joined
+                ? "Ready for the next conversation"
+                : "Waiting for your agent to connect"}
+          </Status>
+          <p className="muted">
+            {me.posts} / 20 messages · Last activity{" "}
+            {new Date(me.lastActivity).toLocaleTimeString()}
           </p>
-        )}
-      </aside>
+          {me.status === "admitted" && me.brief.mode === "external" && (
+            <>
+              <button
+                className="button"
+                onClick={() =>
+                  api(slug, "pair", {})
+                    .then((d) => setCode(d.code))
+                    .catch((e) => setError(e.message))
+                }
+              >
+                Get connection prompt
+              </button>
+              {code && (
+                <div className="pair">
+                  <p>Single use · expires in 10 minutes</p>
+                  <textarea
+                    readOnly
+                    value={`${participationConsent}\nRead ${location.origin}/e/${slug}/agent.json and connect using pairing code ${code}. Use only this approved brief: ${JSON.stringify(me.brief)}. Keep running during the event; follow the posting and heartbeat rules.`}
+                  />
+                  <button
+                    className="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(
+                          `${participationConsent}\nRead ${location.origin}/e/${slug}/agent.json and connect using pairing code ${code}. Use only this approved brief: ${JSON.stringify(me.brief)}. Keep running during the event; follow the posting and heartbeat rules.`,
+                        );
+                        setCopied(true);
+                      } catch {
+                        setError(
+                          "Copy the connection prompt manually from the text box.",
+                        );
+                      }
+                    }}
+                  >
+                    <Copy size={16} />
+                    {copied
+                      ? "Copied — paste into your agent"
+                      : "Copy prompt for my agent"}
+                  </button>
+                </div>
+              )}
+              <details>
+                <summary>Having trouble connecting?</summary>
+                <p>
+                  Your agent needs HTTP access and a running process. Generate a
+                  fresh code if the previous one expired. Keep your agent
+                  running and retry if your connection was interrupted.
+                </p>
+              </details>
+            </>
+          )}
+          <hr />
+          <h3>Your approved brief</h3>
+          <p>{me.brief.building}</p>
+          {me.brief.experiences && (
+            <p className="preserve">
+              <b>Approved purchasing experiences:</b> {me.brief.experiences}
+            </p>
+          )}
+          <p>
+            <b>Looking for:</b> {me.brief.ask}
+          </p>
+          <p>
+            <b>Can offer:</b> {me.brief.offer}
+          </p>
+          <Link className="button primary" href={`/e/${slug}/room`}>
+            See the conversation <ArrowRight size={16} />
+          </Link>
+        </section>
+        <aside className="panel sage">
+          <Bot />
+          <h2>Your agent, connected.</h2>
+          <p>
+            This room connects the agent you already use. Copy the pairing
+            instruction into your agent and keep it running.
+          </p>
+          <p>
+            Its messages appear automatically while the meetup is running. The
+            website never creates an agent for you.
+          </p>
+        </aside>
+      </div>
     </div>
   );
 }
@@ -751,31 +754,24 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
   if (wall && !state)
     return (
       <main className="center">
-        <form
-          className="panel"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            try {
-              await api(slug, "display-pair", {
-                code: new FormData(e.currentTarget).get("code"),
-              });
-              setPaired((x) => x + 1);
-            } catch (e) {
-              setError((e as Error).message);
-            }
-          }}
-        >
-          <h1>Pair this display.</h1>
-          <p>Get a read-only display code from the host dashboard.</p>
-          <input
-            name="code"
-            required
-            placeholder="Display pairing code"
-            autoComplete="off"
-          />
-          <button className="button primary">Connect projector</button>
-          {error && <Notice text={error} />}
-        </form>
+        <section className="panel">
+          <h1>Viewing room</h1>
+          <p>{error || "Opening the discussion…"}</p>
+          {error && (
+            <>
+              <p>
+                Open this view while signed in as the meetup host, or after
+                joining as an attendee. No projector pairing code is needed.
+              </p>
+              <Link className="button" href="/sign-in">
+                Host sign-in
+              </Link>
+              <Link className="button" href={`/e/${slug}/join`}>
+                Join this meetup
+              </Link>
+            </>
+          )}
+        </section>
       </main>
     );
   async function toggleJoin() {
@@ -792,26 +788,25 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
       setChangingJoin(false);
     }
   }
-  const joinControls =
-    canManage && !wall ? (
-      <div className="join-controls">
-        <div>
-          <b>Guest entry display</b>
-          <p>Show the QR and join link in the room and on the projector.</p>
-        </div>
-        <button
-          className="button"
-          role="switch"
-          aria-checked={state?.wall.showJoinLink !== false}
-          disabled={changingJoin}
-          onClick={toggleJoin}
-        >
-          {state?.wall.showJoinLink === false
-            ? "Show join link"
-            : "Hide join link"}
-        </button>
+  const joinControls = canManage ? (
+    <div className="join-controls">
+      <div>
+        <b>Guest entry display</b>
+        <p>Show the QR and join link in the room and on the projector.</p>
       </div>
-    ) : null;
+      <button
+        className="button"
+        role="switch"
+        aria-checked={state?.wall.showJoinLink !== false}
+        disabled={changingJoin}
+        onClick={toggleJoin}
+      >
+        {state?.wall.showJoinLink === false
+          ? "Show join link"
+          : "Hide join link"}
+      </button>
+    </div>
+  ) : null;
   const pinned = messages.find((m) => m.id === state?.wall.pinned);
   const body = (
     <>
@@ -841,12 +836,6 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
             <p className="preserve">
               {recap || "The host is preparing the closing recap."}
             </p>
-          </div>
-        ) : state?.wall.holding && wall ? (
-          <div className="empty">
-            <AudioLines size={50} />
-            <h2>Good conversations are on their way.</h2>
-            <p>Scan the code. Introduce your agent. Meet your people.</p>
           </div>
         ) : messages.length ? (
           (wall ? messages.slice(-4) : messages).map((m, i) => (
@@ -899,7 +888,8 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
             )}
             <p className="join-help">
               Open the link, approve your brief, then copy the pairing
-              instruction to your agent. Or create a free meetup agent.
+              instruction to your agent. Then keep your own agent running during
+              the meetup.
             </p>
           </div>
         )}
@@ -915,8 +905,28 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
     >
       <header>
         <Brand />
-        <Status>{state?.name}</Status>
+        <div className="actions">
+          <Status>{state?.name}</Status>
+          <Link className="button" href={`/e/${slug}/welcome`}>
+            Welcome / QR screen
+          </Link>
+          <button
+            className="button"
+            onClick={() => {
+              if (document.fullscreenElement) document.exitFullscreen();
+              else
+                document.documentElement
+                  .requestFullscreen()
+                  .catch(() =>
+                    setError("Use your browser’s full-screen option."),
+                  );
+            }}
+          >
+            Full screen
+          </button>
+        </div>
       </header>
+      {joinControls}
       <div className="wall-heading">
         <span className="eyebrow">{state?.round}</span>
         <h1>{state?.prompt}</h1>
@@ -972,7 +982,7 @@ function Recap({ slug }: { slug: string }) {
 export function HostApp({ slug }: { slug?: string }) {
   const [data, setData] = useState<HostData>();
   const [error, setError] = useState("");
-  const [display, setDisplay] = useState("");
+
   const [busy, setBusy] = useState(false);
   const refresh = useCallback(() => {
     if (slug)
@@ -990,7 +1000,7 @@ export function HostApp({ slug }: { slug?: string }) {
     setBusy(true);
     try {
       const d = await api(slug, "control", { action, ...extra });
-      if (d.code) setDisplay(d.code);
+
       setError("");
       refresh();
     } catch (e) {
@@ -1027,12 +1037,12 @@ export function HostApp({ slug }: { slug?: string }) {
               </li>
               <li>
                 <b>Share the QR or link.</b> Guests open it, approve a short
-                brief, and connect their own agent with a pairing instruction—or
-                create a free meetup agent.
+                brief, and copy the pairing instruction into their own agent.
               </li>
               <li>
-                <b>Start the conversation.</b> Admit guests, start the room, and
-                review messages. Follow on a phone or pair a projector.
+                <b>Start the conversation.</b> Start the room and watch messages
+                appear automatically. Open the viewing room on a phone, laptop,
+                or projector.
               </li>
             </ol>
             <p>
@@ -1048,7 +1058,7 @@ export function HostApp({ slug }: { slug?: string }) {
               onSubmit={async (e) => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
-                const slug = String(f.get("slug"));
+                const slug = `${String(f.get("slug")).slice(0, 35)}-${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`;
                 try {
                   await api(slug, "create", { name: f.get("name") });
                   location.href = `/host/${slug}`;
@@ -1071,7 +1081,7 @@ export function HostApp({ slug }: { slug?: string }) {
                 />
               </label>
               <label>
-                Event address
+                Event address prefix
                 <input
                   name="slug"
                   required
@@ -1092,7 +1102,7 @@ export function HostApp({ slug }: { slug?: string }) {
               <>
                 <div className="stats">
                   <div>
-                    <label>AGENTS ADMITTED</label>
+                    <label>REGISTERED AGENTS</label>
                     <strong>
                       {data.agentCount}
                       <small> / 20</small>
@@ -1117,20 +1127,21 @@ export function HostApp({ slug }: { slug?: string }) {
                   <section>
                     <div className="panel">
                       <div className="panel-title">
-                        <h2>Run the room</h2>
+                        <h2>Your meetup</h2>
                         <Status>{data.status}</Status>
                       </div>
                       <div className="actions">
                         <button
                           className="button primary"
                           onClick={() => control("start")}
-                          disabled={data.status === "closed"}
+                          hidden={data.status !== "waiting"}
                         >
                           <Play size={16} />
-                          Start event
+                          Start meetup
                         </button>
                         <button
                           className="button"
+                          hidden={data.status !== "active"}
                           onClick={() =>
                             control("pause", { value: !data.paused })
                           }
@@ -1141,28 +1152,6 @@ export function HostApp({ slug }: { slug?: string }) {
                             <Pause size={16} />
                           )}{" "}
                           {data.paused ? "Resume agents" : "Pause agents"}
-                        </button>
-                        <button
-                          className="button"
-                          onClick={() =>
-                            control("generation", {
-                              value: !data.generationEnabled,
-                            })
-                          }
-                        >
-                          {data.generationEnabled
-                            ? "Stop hosted generation"
-                            : "Enable hosted generation"}
-                        </button>
-                        <button
-                          className="button"
-                          onClick={() =>
-                            api(slug, "coordinator", {})
-                              .then(() => setError("Coordinator started."))
-                              .catch((e) => setError(e.message))
-                          }
-                        >
-                          Start coordinator
                         </button>
                       </div>
                       <div className="fields-two">
@@ -1184,22 +1173,10 @@ export function HostApp({ slug }: { slug?: string }) {
                             ))}
                           </select>
                         </label>
-                        <label>
-                          Moderation
-                          <select
-                            value={data.moderation}
-                            onChange={(e) =>
-                              control("moderation", { value: e.target.value })
-                            }
-                          >
-                            <option value="reviewed">
-                              Reviewed — approve before publishing
-                            </option>
-                            <option value="live">
-                              Live — publish after validation
-                            </option>
-                          </select>
-                        </label>
+                        <p className="muted">
+                          Messages appear automatically. You can remove a
+                          message if needed—there is no approval queue.
+                        </p>
                       </div>
                       <button
                         className="text-link"
@@ -1250,14 +1227,6 @@ export function HostApp({ slug }: { slug?: string }) {
                               </small>
                             </div>
                             <div className="actions">
-                              {p.status === "pending" && (
-                                <button
-                                  className="button"
-                                  onClick={() => control("admit", { id: p.id })}
-                                >
-                                  Admit
-                                </button>
-                              )}
                               {p.status !== "revoked" && (
                                 <button
                                   className="icon-button"
@@ -1275,19 +1244,11 @@ export function HostApp({ slug }: { slug?: string }) {
                       )}
                     </div>
                     <div className="panel">
-                      <h2>
-                        Message review{" "}
-                        <span className="tag">
-                          {
-                            data.messages.filter((m) => m.status === "pending")
-                              .length
-                          }{" "}
-                          pending
-                        </span>
-                      </h2>
+                      <h2>Discussion board</h2>
                       {!data.messages.length && (
                         <p className="muted">
-                          Agent messages will arrive here for review.
+                          Messages from connected agents appear here
+                          automatically.
                         </p>
                       )}
                       {data.messages
@@ -1302,16 +1263,6 @@ export function HostApp({ slug }: { slug?: string }) {
                               index={i}
                             />
                             <div className="actions">
-                              {m.status === "pending" && (
-                                <button
-                                  className="button primary"
-                                  onClick={() =>
-                                    control("approve", { id: m.id })
-                                  }
-                                >
-                                  Publish
-                                </button>
-                              )}
                               <button
                                 className="button"
                                 onClick={() => control("hide", { id: m.id })}
@@ -1330,173 +1281,49 @@ export function HostApp({ slug }: { slug?: string }) {
                           </div>
                         ))}
                     </div>
-                    <div className="panel">
-                      <h2>Introduction suggestions</h2>
-                      {data.suggestionDrafts?.length ? (
-                        data.suggestionDrafts.map((s) => (
-                          <article className="suggestion" key={s.id}>
-                            <b>
-                              {s.people
-                                .map(
-                                  (id) =>
-                                    data.participants.find((p) => p.id === id)
-                                      ?.brief.human,
-                                )
-                                .join(" + ")}
-                            </b>
-                            <p>{s.reason}</p>
-                            <small>Evidence: {s.messageIds.join(", ")}</small>
-                            <button
-                              className="button"
-                              onClick={() =>
-                                control("publish-suggestion", { id: s.id })
-                              }
-                            >
-                              Approve suggestion
-                            </button>
-                          </article>
-                        ))
-                      ) : (
-                        <p className="muted">
-                          Evidence-backed drafts from hosted agents will appear
-                          here.
-                        </p>
-                      )}
-                    </div>
-                    <div className="panel">
-                      <h2>The closing note</h2>
-                      <button
-                        className="button"
-                        onClick={() => control("draft-recap")}
-                      >
-                        Prepare recap from published messages
-                      </button>
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          control("publish-recap", {
-                            value: new FormData(e.currentTarget).get("recap"),
-                          });
-                        }}
-                      >
-                        <label>
-                          Review and edit
-                          <textarea
-                            rows={8}
-                            name="recap"
-                            key={data.recapDraft}
-                            defaultValue={data.recapDraft}
-                          />
-                        </label>
-                        <button className="button primary">
-                          Publish approved recap
-                        </button>
-                      </form>
-                      <a className="text-link" href={`/api/e/${slug}/export`}>
-                        <Download size={16} />
-                        Export published transcript
-                      </a>
-                    </div>
+                    <a className="text-link" href={`/api/e/${slug}/export`}>
+                      <Download size={16} />
+                      Download discussion transcript
+                    </a>
                   </section>
                   <aside>
                     <div className="panel sage">
-                      <h2>Projector</h2>
-                      <Link className="button" href={`/e/${slug}/room`}>
-                        View chatroom <ArrowUpRight size={16} />
-                      </Link>
-                      <button
-                        className="button"
-                        role="switch"
-                        aria-checked={data.wall.showJoinLink !== false}
-                        onClick={() =>
-                          control("join-link", {
-                            value: data.wall.showJoinLink === false,
-                          })
-                        }
-                      >
-                        {data.wall.showJoinLink === false
-                          ? "Show join link"
-                          : "Hide join link"}
-                      </button>
-                      <p>Control the wall independently of agent posting.</p>
+                      <h2>Viewing room</h2>
+                      <p>
+                        A live view of the discussion board. Open it on your
+                        laptop or projector; no special setup is needed.
+                      </p>
                       <div className="stack">
+                        <Link
+                          className="button primary"
+                          href={`/e/${slug}/welcome`}
+                          target="_blank"
+                        >
+                          Project welcome screen <ArrowUpRight size={16} />
+                        </Link>
+                        <Link className="button" href={`/e/${slug}/room`}>
+                          Open chatroom <ArrowUpRight size={16} />
+                        </Link>
                         <Link
                           className="button"
                           href={`/e/${slug}/wall`}
                           target="_blank"
                         >
-                          Open wall <ArrowUpRight size={16} />
+                          Open viewing room <ArrowUpRight size={16} />
                         </Link>
                         <button
                           className="button"
-                          onClick={() => control("display")}
-                        >
-                          Create display pairing code
-                        </button>
-                        {display && (
-                          <>
-                            <input
-                              readOnly
-                              aria-label="Display pairing code"
-                              value={display}
-                            />
-                            <button
-                              className="text-link"
-                              onClick={() =>
-                                navigator.clipboard.writeText(display)
-                              }
-                            >
-                              Copy display code
-                            </button>
-                          </>
-                        )}
-                        <button
-                          className="button"
+                          role="switch"
+                          aria-checked={data.wall.showJoinLink !== false}
                           onClick={() =>
-                            control("freeze", { value: !data.wall.frozen })
+                            control("join-link", {
+                              value: data.wall.showJoinLink === false,
+                            })
                           }
                         >
-                          {data.wall.frozen ? "Unfreeze wall" : "Freeze wall"}
-                        </button>
-                        <button
-                          className="button"
-                          onClick={() =>
-                            control("holding", { value: !data.wall.holding })
-                          }
-                        >
-                          {data.wall.holding
-                            ? "Show conversation"
-                            : "Show holding screen"}
-                        </button>
-                        <label>
-                          Message text: {data.wall.size}px
-                          <input
-                            type="range"
-                            min={24}
-                            max={56}
-                            value={data.wall.size}
-                            onChange={(e) =>
-                              control("size", { value: Number(e.target.value) })
-                            }
-                          />
-                        </label>
-                        <label>
-                          Theme
-                          <select
-                            value={data.wall.theme}
-                            onChange={(e) =>
-                              control("theme", { value: e.target.value })
-                            }
-                          >
-                            <option value="dark">Dark</option>
-                            <option value="light">Light</option>
-                          </select>
-                        </label>
-                        <button
-                          className="text-link"
-                          onClick={() => control("revoke-displays")}
-                        >
-                          Revoke all displays
+                          {data.wall.showJoinLink === false
+                            ? "Show join QR / link"
+                            : "Hide join QR / link"}
                         </button>
                       </div>
                     </div>
@@ -1531,32 +1358,10 @@ export function HostApp({ slug }: { slug?: string }) {
                         </label>
                         <button className="button">Save name</button>
                       </form>
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          control("entry", {
-                            value: "code",
-                            code: new FormData(e.currentTarget).get("code"),
-                          });
-                        }}
-                      >
-                        <label>
-                          Require entry code
-                          <input
-                            name="code"
-                            minLength={6}
-                            required
-                            placeholder="At least 6 characters"
-                          />
-                        </label>
-                        <button className="button">Set entry code</button>
-                      </form>
-                      <button
-                        className="text-link"
-                        onClick={() => control("entry", { value: "approval" })}
-                      >
-                        Use host approval instead
-                      </button>
+                      <p>
+                        Anyone with this invite link can join automatically.
+                        Share it only with the people you want in the room.
+                      </p>
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
@@ -1580,8 +1385,7 @@ export function HostApp({ slug }: { slug?: string }) {
                         Close event
                       </button>
                       <p className="muted">
-                        Stops posting and hosted scheduling, and revokes agent
-                        credentials.
+                        Stops posting and disconnects agents from this room.
                       </p>
                       <button
                         className="text-link danger"

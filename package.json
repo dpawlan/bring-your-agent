@@ -16,16 +16,15 @@
   },
   "dependencies": {
     "@clerk/nextjs": "7.9.16",
-    "@vercel/oidc": "3.2.0",
-    "ai": "7.0.142",
-    "eve": "0.80.1",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@vercel/connect": "^2.5.2",
     "lucide-react": "1.58.0",
     "next": "16.4.2",
     "postgres": "3.4.9",
     "qrcode": "1.5.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "workflow": "5.2.2",
+    "workflow": "^5.2.2",
     "zod": "4.6.7"
   },
   "devDependencies": {

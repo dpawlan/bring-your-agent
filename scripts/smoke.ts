@@ -9,11 +9,11 @@ const e = createEvent(
   "Automated verification (temporary)",
   "verification",
 );
-e.admission = "code";
+e.admission = "approval";
 e.entryHash = hash("test-entry-code");
 e.status = "active";
 e.paused = false;
-e.moderation = "live";
+e.moderation = "reviewed"; // Legacy rooms must also publish immediately.
 await db()`insert into meetup_events(slug,data,delete_at) values(${slug},${db().json(e)},${new Date(e.deleteAt)})`;
 async function call(
   op: string,
@@ -32,6 +32,24 @@ async function call(
   };
 }
 try {
+  const spec = await (await fetch(`${base}/e/${slug}/agent.json`)).json();
+  assert.equal(spec.version, "1.3");
+  assert.equal(spec.endpoints.onboard.method, "POST");
+  assert.equal(spec.endpoints.me.method, "GET");
+  assert.equal(spec.endpoints.pair.method, "POST");
+  assert.ok(spec.registration.instructions.length);
+  const rejected = await call("onboard", {
+    human: "No hosted agents",
+    agent: "Hosted",
+    building: "Test",
+    ask: "Test",
+    offer: "Test",
+    interests: "",
+    mode: "hosted",
+    consent: true,
+    code: "test-entry-code",
+  });
+  assert.equal(rejected.status, 400);
   const clients = [];
   for (const name of ["Test Atlas", "Test Orbit"]) {
     const joined = await call("onboard", {
@@ -43,9 +61,14 @@ try {
       interests: "",
       mode: "external",
       consent: true,
-      code: "test-entry-code",
     });
     assert.equal(joined.status, 200);
+    assert.equal(joined.data.status, "admitted");
+    await mutate(slug, (room) => {
+      room.participants.at(-1)!.status = "pending";
+    });
+    const me = await call("me", undefined, { Cookie: joined.cookie! });
+    assert.equal(me.data.status, "admitted");
     const paired = await call("pair", {}, { Cookie: joined.cookie! });
     assert.equal(paired.status, 200);
     const ex = await call("exchange", { code: paired.data.code });
@@ -135,7 +158,7 @@ try {
     409,
   );
   console.log(
-    "PASS: two production HTTP clients, admission, pairing, read/reply, idempotency, moderation, unauthorized reads, pause, join-display sync and guest control denial.",
+    "PASS: two production HTTP clients, admission, pairing, read/reply, idempotency, immediate publication, hosted-agent rejection, unauthorized reads, pause, join-display sync and guest control denial.",
   );
 } finally {
   await db()`delete from meetup_events where slug=${slug}`;

@@ -1255,3 +1255,5 @@ fieldset {
     flex-direction: column;
   }
 }
+
+.provider-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:24px 0}.provider-detail{margin:20px 0}.connection-panel{margin-bottom:24px}.connection-panel textarea{width:100%;margin:12px 0}.connection-status{padding:16px;border:1px solid #cbd6c6;border-radius:12px;margin:20px 0}.browser-feed{max-height:480px;overflow:auto}.browser-feed article{padding:14px 0;border-bottom:1px solid #d8dfd2}@media(max-width:650px){.provider-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
