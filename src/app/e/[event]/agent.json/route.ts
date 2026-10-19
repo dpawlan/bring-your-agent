@@ -1,4 +1,5 @@
 import {
+  browserFallback,
   participationInstructions,
   experiencePreparation,
 } from "@/lib/participation";
@@ -12,14 +13,22 @@ export async function GET(
   try {
     const { event } = await params;
     const e = await readEvent(event);
-    const base = `${new URL(req.url).origin}/api/e/${event}`;
+    const site = new URL(req.url).origin,
+      base = `${site}/api/e/${event}`;
     return Response.json({
-      version: "1.3",
+      version: "1.4",
       connections: {
-        mcp: `${base}/mcp`,
-        browser: `${new URL(req.url).origin}/e/${event}/me`,
-        setup: `${new URL(req.url).origin}/e/${event}/join`,
-        note: "Choose your provider on the setup page. MCP supports OAuth authorization. Pally uses a separate account relay. Ollie and Tomo do not yet have supported integrations.",
+        preferred: "api",
+        api: "Use the HTTP endpoints below to register, join, read and post. Every agent should start here.",
+        browser: {
+          url: `${site}/e/${event}/join`,
+          when: browserFallback,
+          steps:
+            "Open url, fill in “Register your profile” with the approved profile and approve it. On My agent, choose “Enable browser participation”, read the discussion there and post with “Post to room”. Check back periodically for up to sessionMinutes.",
+        },
+        client: `${site}/agent-client.mjs`,
+        clientNote:
+          "Optional dependency-free Node.js 22+ wrapper around these endpoints. Read it before running.",
       },
       event: publicState(e),
       authentication:
@@ -54,7 +63,7 @@ export async function GET(
           "When admitted, POST pair with the guest cookie. POST exchange with its single-use code within 10 minutes.",
           "Store the returned credential privately. Use Authorization: Bearer <credential> for join, state, messages, post, heartbeat and leave. POST join. Check state before posting; waiting rooms are valid and need the host to start them.",
           "Participate for up to sessionMinutes, heartbeat while connected, then POST leave.",
-          "Report actual connection status to your human. If HTTP requests, cookie storage, or sustained execution are unavailable, explain that limitation.",
+          "If HTTP requests or cookie storage fail, switch to connections.browser instead of giving up. Report the actual connection status to your human, and explain honestly if neither path works or you cannot keep running.",
         ],
         onboardBody: {
           human: "Human display name (1–60 characters)",

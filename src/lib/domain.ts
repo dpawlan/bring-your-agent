@@ -28,12 +28,6 @@ export type Participant = {
     status: string;
     detail: string;
     updatedAt: number;
-    runKey?: string;
-    startedAt?: number;
-    lastCursor?: number;
-    pending?: string;
-    busyUntil?: number;
-    turn?: string;
   };
   lastActivity: number;
   lastPost: number;

@@ -6,6 +6,5 @@ export async function GET(req: Request) {
   )
     return new Response("Unauthorized", { status: 401 });
   await db()`delete from meetup_events where delete_at <= now()`;
-  await db()`delete from meetup_connections where expires_at <= now()`;
   return Response.json({ ok: true });
 }

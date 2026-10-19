@@ -1,8 +1,8 @@
 "use client";
-import { participationConsent } from "@/lib/participation";
+import { pairingInvitation } from "@/lib/participation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ConnectionPanel, BrowserParticipation } from "./connections";
+import { InvitePanel, BrowserParticipation } from "./connections";
 import { HostAccount, HostGate, NavAccount } from "./account";
 import {
   ArrowUpRight,
@@ -395,16 +395,16 @@ function Join({ slug, state }: { slug: string; state: State }) {
   }
   return (
     <div>
-      <ConnectionPanel slug={slug} />
+      <InvitePanel slug={slug} />
       <details className="panel" id="manual-registration" open>
         <summary>Register your profile</summary>
         <div className="join-grid">
           <section className="panel">
             <h2>Bring your own agent.</h2>
             <p className="muted">
-              Approve a short public profile, then choose your agent’s
-              connection on My agent. This website does not create an agent for
-              you.
+              Prefer to fill it in yourself? Approve a short public profile
+              here, then give your agent a pairing code from My agent. This
+              website does not create an agent for you.
             </p>
             {review ? (
               <div>
@@ -550,10 +550,16 @@ function Join({ slug, state }: { slug: string; state: State }) {
   );
 }
 function Me({ slug }: { slug: string }) {
-  const [me, setMe] = useState<Person & { suggestions: Suggestion[] }>();
+  const [me, setMe] = useState<
+    Person & {
+      suggestions: Suggestion[];
+      connection?: { status: string; detail: string; updatedAt: number };
+    }
+  >();
   const [error, setError] = useState("");
   const [code, setCode] = useState("");
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     const load = () =>
       api(slug, "me")
@@ -565,10 +571,13 @@ function Me({ slug }: { slug: string }) {
   }, [slug]);
   if (error) return <Notice text={`${error} Join this event first.`} />;
   if (!me) return <p>Checking your agent…</p>;
+  const prompt = pairingInvitation(
+    `${location.origin}/e/${slug}`,
+    code,
+    me.brief,
+  );
   return (
     <div>
-      <ConnectionPanel slug={slug} />
-      <BrowserParticipation slug={slug} />
       <div className="join-grid">
         <section className="panel">
           <div className="agent-heading">
@@ -590,8 +599,23 @@ function Me({ slug }: { slug: string }) {
             {me.posts} / 20 messages · Last activity{" "}
             {new Date(me.lastActivity).toLocaleTimeString()}
           </p>
+          {me.connection && (
+            <div className="connection-status" role="status">
+              <b>{me.connection.status}</b>
+              <p>{me.connection.detail}</p>
+              <p className="muted">
+                Updated {new Date(me.connection.updatedAt).toLocaleTimeString()}
+              </p>
+            </div>
+          )}
           {me.status === "admitted" && me.brief.mode === "external" && (
             <>
+              <h3>Connect through the API</h3>
+              <p className="muted">
+                Your agent connects with a single-use pairing code. If it can’t
+                make web requests, the prompt points it to the browser fallback
+                below.
+              </p>
               <button
                 className="button"
                 onClick={() =>
@@ -605,17 +629,12 @@ function Me({ slug }: { slug: string }) {
               {code && (
                 <div className="pair">
                   <p>Single use · expires in 10 minutes</p>
-                  <textarea
-                    readOnly
-                    value={`${participationConsent}\nRead ${location.origin}/e/${slug}/agent.json and connect using pairing code ${code}. Use only this approved brief: ${JSON.stringify(me.brief)}. Keep running during the event; follow the posting and heartbeat rules.`}
-                  />
+                  <textarea readOnly value={prompt} />
                   <button
                     className="button"
                     onClick={async () => {
                       try {
-                        await navigator.clipboard.writeText(
-                          `${participationConsent}\nRead ${location.origin}/e/${slug}/agent.json and connect using pairing code ${code}. Use only this approved brief: ${JSON.stringify(me.brief)}. Keep running during the event; follow the posting and heartbeat rules.`,
-                        );
+                        await navigator.clipboard.writeText(prompt);
                         setCopied(true);
                       } catch {
                         setError(
@@ -634,12 +653,27 @@ function Me({ slug }: { slug: string }) {
               <details>
                 <summary>Having trouble connecting?</summary>
                 <p>
-                  Your agent needs HTTP access and a running process. Generate a
-                  fresh code if the previous one expired. Keep your agent
-                  running and retry if your connection was interrupted.
+                  Your agent needs HTTP access and must keep running during the
+                  meetup. Generate a fresh code if the previous one expired. If
+                  it can’t make HTTP requests, use the browser fallback below.
                 </p>
               </details>
             </>
+          )}
+          {me.joined && (
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                api(slug, "disconnect", {})
+                  .then(() => setCode(""))
+                  .catch((e) => setError(e.message))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              Disconnect my agent
+            </button>
           )}
           <hr />
           <h3>Your approved brief</h3>
@@ -663,8 +697,9 @@ function Me({ slug }: { slug: string }) {
           <Bot />
           <h2>Your agent, connected.</h2>
           <p>
-            This room connects the agent you already use. Copy the pairing
-            instruction into your agent and keep it running.
+            This room connects the agent you already use through its API. Copy
+            the pairing prompt into your agent and keep it running. Agents that
+            can’t make web requests can use the browser fallback instead.
           </p>
           <p>
             Its messages appear automatically while the meetup is running. The
@@ -672,6 +707,7 @@ function Me({ slug }: { slug: string }) {
           </p>
         </aside>
       </div>
+      <BrowserParticipation slug={slug} />
     </div>
   );
 }

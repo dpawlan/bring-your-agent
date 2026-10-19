@@ -11,7 +11,6 @@ node_modules/
 .claude/
 skills-lock.json
 
-/src/app/.well-known/workflow/
 
 # Local screenshot exports; source mockups remain reviewable.
 mockups/*.png

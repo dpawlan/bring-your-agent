@@ -1,7 +1,4 @@
 import { participationInstructions } from "@/lib/participation";
-import { start } from "workflow/api";
-import { pallyRelay } from "@/workflows/pally-relay";
-import { pallyAuthorization, inspectPally, disconnectPally } from "@/lib/pally";
 import { cookies } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -18,7 +15,6 @@ import {
   participant,
   post,
   publicState,
-  secret,
   visibleMessages,
 } from "@/lib/domain";
 import { bearer, cookie, error, host, origin, owner, reader } from "@/lib/http";
@@ -33,7 +29,6 @@ export async function GET(req: Request, ctx: Context) {
         ...publicState(e),
         prompt: "",
         wall: undefined,
-        pallyEnabled: process.env.PALLY_ENABLED === "true",
       });
     if (op === "me") {
       const p = participant(
@@ -201,76 +196,12 @@ export async function POST(req: Request, ctx: Context) {
       });
     }
 
-    if (
-      [
-        "browser-connect",
-        "browser-post",
-        "disconnect",
-        "pally-authorize",
-        "pally-start",
-      ].includes(op)
-    ) {
+    if (["browser-connect", "browser-post", "disconnect"].includes(op)) {
       const token = (await cookies()).get("guest_" + event)?.value || "";
       const current = await readEvent(event);
       const guest = participant(current, token, "guest");
       if (guest.status !== "admitted" || current.status === "closed")
         throw new AppError(403, "This registration is inactive.");
-      if (op === "pally-authorize")
-        return Response.json({
-          url: await pallyAuthorization(
-            event,
-            guest.id,
-            new URL(req.url).origin,
-          ),
-        });
-      if (op === "pally-start") {
-        if (process.env.PALLY_ENABLED !== "true")
-          throw new AppError(
-            503,
-            "Pally production authorization is not enabled yet.",
-          );
-        await inspectPally(event, guest.id);
-        const key = secret();
-        const started = await mutate(event, (e) => {
-          const p = participant(e, token, "guest");
-          if (
-            p.connection?.runKey &&
-            Date.now() - (p.connection.startedAt || 0) < 90 * 60000
-          )
-            return false;
-          p.agentHash = undefined;
-          p.joined = true;
-          p.connection = {
-            provider: "pally",
-            status: "connected",
-            detail:
-              "Connected to your Pally. Listening for the meetup to start.",
-            updatedAt: Date.now(),
-            runKey: key,
-            startedAt: Date.now(),
-          };
-          return true;
-        });
-        if (started) {
-          try {
-            await start(pallyRelay, [event, guest.id, key]);
-          } catch {
-            await mutate(event, (e) => {
-              const p = participant(e, token, "guest");
-              if (p.connection?.runKey === key) {
-                p.connection.runKey = undefined;
-                p.connection.status = "error";
-                p.connection.detail = "Could not start listening. Try again.";
-              }
-            });
-            throw new AppError(
-              503,
-              "Could not start the Pally relay. Try again.",
-            );
-          }
-        }
-        return Response.json({ connected: true });
-      }
       if (op === "disconnect") {
         await mutate(event, (e) => {
           const p = participant(e, token, "guest");
@@ -284,8 +215,6 @@ export async function POST(req: Request, ctx: Context) {
             updatedAt: Date.now(),
           };
         });
-        if (guest.connection?.provider === "pally")
-          await disconnectPally(event, guest.id);
         return Response.json({ disconnected: true });
       }
       return Response.json(
@@ -324,6 +253,12 @@ export async function POST(req: Request, ctx: Context) {
           if (op === "leave") {
             p.agentHash = undefined;
             p.joined = false;
+            p.connection = {
+              provider: "api",
+              status: "disconnected",
+              detail: "Your agent left the room.",
+              updatedAt: Date.now(),
+            };
           } else {
             p.lastActivity = Date.now();
             if (op === "join") {

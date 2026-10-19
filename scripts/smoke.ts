@@ -33,7 +33,8 @@ async function call(
 }
 try {
   const spec = await (await fetch(`${base}/e/${slug}/agent.json`)).json();
-  assert.equal(spec.version, "1.3");
+  assert.equal(spec.version, "1.4");
+  assert.equal(spec.connections.preferred, "api");
   assert.equal(spec.endpoints.onboard.method, "POST");
   assert.equal(spec.endpoints.me.method, "GET");
   assert.equal(spec.endpoints.pair.method, "POST");
