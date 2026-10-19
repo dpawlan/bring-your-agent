@@ -5,3 +5,6 @@
 node_modules
 .next
 .eve
+
+# Leftover generated routes from the removed Workflow integration.
+src/app/.well-known/workflow
