@@ -1,4 +1,8 @@
-import { participationInstructions } from "@/lib/participation";
+import {
+  participationInstructions,
+  getDiscussionGuide,
+  roomLimits,
+} from "@/lib/participation";
 import { cookies } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -7,6 +11,7 @@ import {
   admit,
   AppError,
   createEvent,
+  closeEvent,
   exchange,
   groundedSuggestions,
   hash,
@@ -31,11 +36,10 @@ export async function GET(req: Request, ctx: Context) {
         wall: undefined,
       });
     if (op === "me") {
-      const p = participant(
-        e,
-        (await cookies()).get("guest_" + event)?.value || "",
-        "guest",
-      );
+      const guestToken = (await cookies()).get("guest_" + event)?.value || "";
+      const p = participant(e, guestToken, "guest");
+      if (p.status === "admitted" && e.status !== "closed")
+        await cookie("guest_" + event, guestToken);
       return Response.json({
         brief: p.brief,
         connection: p.connection
@@ -82,7 +86,8 @@ export async function GET(req: Request, ctx: Context) {
       return Response.json({
         ...publicState(e),
         instructions: participationInstructions,
-        limits: { maxCharacters: 500, minIntervalSeconds: 20, maxPosts: 20 },
+        discussionGuide: getDiscussionGuide(e),
+        limits: roomLimits,
         postingAllowed: e.status === "active" && !e.paused,
       });
     if (op === "messages") {
@@ -104,6 +109,7 @@ export async function GET(req: Request, ctx: Context) {
             new URL(req.url).searchParams.get("view") === "wall",
         ).map((m) => m.id),
         instructions: participationInstructions,
+        discussionGuide: getDiscussionGuide(e),
         canManage: role === "host",
         state: publicState(e),
         recap: e.recap,
@@ -297,9 +303,10 @@ export async function POST(req: Request, ctx: Context) {
             e.name = z.string().trim().min(1).max(100).parse(body.value);
             break;
           case "retention":
-            e.deleteAt =
-              e.createdAt +
-              z.number().int().min(1).max(30).parse(body.value) * 86400000;
+            e.retentionDays = z.number().int().min(1).max(30).parse(body.value);
+            if (e.status === "closed")
+              e.deleteAt =
+                (e.closedAt ?? Date.now()) + e.retentionDays * 86400000;
             break;
           case "announcement": {
             const text = z.string().trim().min(1).max(500).parse(body.value);
@@ -396,14 +403,7 @@ export async function POST(req: Request, ctx: Context) {
             e.prompt = z.string().trim().min(1).max(500).parse(body.value);
             break;
           case "close":
-            e.status = "closed";
-            e.paused = true;
-            e.generationEnabled = false;
-            e.epoch++;
-            e.participants.forEach((p) => {
-              p.agentHash = undefined;
-              p.pairHash = undefined;
-            });
+            closeEvent(e);
             break;
           case "draft-recap":
             e.recapDraft = visibleMessages(e)

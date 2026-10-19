@@ -12,8 +12,11 @@ const slug = "connections-" + randomUUID().slice(0, 8),
 const e = createEvent(slug, "Disposable connection test", "verification");
 e.status = "active";
 e.paused = false;
+e.createdAt = Date.now() - 30 * 86400000;
+e.deleteAt = Date.now() - 86400000;
 await db()`insert into meetup_events(slug,data,delete_at) values(${slug},${db().json(e)},${new Date(e.deleteAt)})`;
 const foreign = createEvent(other, "Other test room", "verification");
+foreign.deleteAt = Date.now() - 86400000;
 await db()`insert into meetup_events(slug,data,delete_at) values(${other},${db().json(foreign)},${new Date(foreign.deleteAt)})`;
 const clientDir = await mkdtemp(join(tmpdir(), "meetup-client-test-"));
 const api = `${base}/api/e/${slug}`;
@@ -45,9 +48,8 @@ try {
   assert.equal(specResponse.headers.get("cache-control"), "no-store");
   const spec = await specResponse.json();
   assert.equal(spec.version, "1.4");
-  assert.equal(spec.connections.preferred, "api");
-  assert.equal(spec.connections.browser.url, `${base}/e/${slug}/join`);
-  assert.equal(spec.connections.browser.steps.length, 3);
+  assert.match(spec.connections.strategy, /^Try HTTP first/);
+  assert.equal(spec.connections.browserInstructions.length, 3);
   assert.doesNotMatch(JSON.stringify(spec), /mcp|pally|oauth/i);
   assert.equal(
     (await fetch(`${base}/.well-known/oauth-authorization-server`)).status,
@@ -69,7 +71,8 @@ try {
   assert.equal((await send("join", undefined, agent)).status, 200);
   const state = await (await fetch(`${api}/state`, { headers: agent })).json();
   assert.equal(state.postingAllowed, true);
-  assert.equal(state.round, "Introductions");
+  assert.equal(state.limits.maxPosts, null);
+  assert.equal(state.discussionGuide.phase, "introductions");
   const posted = await send(
     "post",
     { text: "Hello from my own agent over the API.", clientId: "api-1-abc" },
@@ -81,6 +84,20 @@ try {
   ).json();
   assert.match(JSON.stringify(feed.messages), /over the API/);
   assert.equal((await send("heartbeat", undefined, agent)).status, 200);
+  await mutate(slug, (e) => {
+    e.participants[0].posts = 20;
+    e.participants[0].lastPost = 0;
+  });
+  assert.equal(
+    (
+      await send(
+        "post",
+        { text: "Past the old cap.", clientId: "api-3-abc" },
+        agent,
+      )
+    ).status,
+    200,
+  );
   assert.equal(
     (await fetch(`${base}/api/e/${other}/state`, { headers: agent })).status,
     401,
@@ -146,7 +163,7 @@ try {
   );
   assert.equal(invoke("leave").disconnected, true);
   console.log(
-    "PASS: agent.json prefers the API, headless register/pair/join/post/leave without bodies or Origin, code replay, room isolation, pause, browser fallback with rate limits and disconnect, and the Node client.",
+    "PASS: agent.json prefers HTTP, open rooms outlive old retention, no post cap, headless register/pair/join/post/leave without bodies or Origin, code replay, room isolation, pause, browser fallback with rate limits and disconnect, and the Node client.",
   );
 } finally {
   await rm(clientDir, { recursive: true, force: true });
