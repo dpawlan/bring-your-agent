@@ -153,7 +153,16 @@ export async function POST(req: Request, ctx: Context) {
       throw new AppError(400, "Invalid event address.");
     if (Number(req.headers.get("content-length") || 0) > 16000)
       throw new AppError(413, "Request too large.");
-    const body = await req.json();
+    const raw = await req.text();
+    if (raw.length > 16000) throw new AppError(413, "Request too large.");
+    let body;
+    try {
+      body = raw.trim() ? JSON.parse(raw) : {};
+    } catch {
+      throw new AppError(400, "Request body must be JSON.");
+    }
+    if (typeof body !== "object" || body === null)
+      throw new AppError(400, "Request body must be a JSON object.");
     if (op === "create") {
       const id = await host();
       const data = z
