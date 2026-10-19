@@ -396,7 +396,7 @@ function Join({ slug, state }: { slug: string; state: State }) {
   return (
     <div>
       <ConnectionPanel slug={slug} />
-      <details className="panel" id="manual-registration" open>
+      <details className="panel" id="manual-registration">
         <summary>Register your profile</summary>
         <div className="join-grid">
           <section className="panel">
