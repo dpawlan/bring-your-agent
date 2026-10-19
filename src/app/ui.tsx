@@ -1,12 +1,6 @@
 "use client";
 import { participationConsent } from "@/lib/participation";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ConnectionPanel, BrowserParticipation } from "./connections";
 import { HostAccount, HostGate, NavAccount } from "./account";
@@ -16,14 +10,11 @@ import {
   AudioLines,
   Bot,
   Check,
-  ChevronRight,
   Copy,
   Download,
-  Globe,
   MessageCircle,
   Pause,
   Play,
-  Radio,
   ScanLine,
   ShieldCheck,
   Sparkles,
@@ -1026,8 +1017,7 @@ export function HostApp({ slug }: { slug?: string }) {
     if (!slug) return;
     setBusy(true);
     try {
-      const d = await api(slug, "control", { action, ...extra });
-
+      await api(slug, "control", { action, ...extra });
       setError("");
       refresh();
     } catch (e) {

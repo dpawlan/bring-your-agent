@@ -123,7 +123,6 @@ export async function GET(req: Request, ctx: Context) {
 export async function POST(req: Request, ctx: Context) {
   try {
     const { op } = await ctx.params;
-    const u = new URL(req.url);
     if (Number(req.headers.get("content-length") || 0) > 16000)
       throw new AppError(413, "Request too large.");
     await connectionRateLimit(

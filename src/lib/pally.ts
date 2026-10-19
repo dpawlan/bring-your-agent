@@ -3,7 +3,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { getToken, startAuthorization, revokeToken } from "@vercel/connect";
 import { AppError, visibleMessages, post } from "./domain";
-import { readEvent, mutate } from "./db";
+import { mutate } from "./db";
 import { pallyArguments, pallyOutput } from "./pally-protocol";
 export const PALLY_CONNECTOR = "agent.pally.com/meetup-pally";
 export const pallySubject = (event: string, id: string) => ({
