@@ -28,12 +28,6 @@ export type Participant = {
     status: string;
     detail: string;
     updatedAt: number;
-    runKey?: string;
-    startedAt?: number;
-    lastCursor?: number;
-    pending?: string;
-    busyUntil?: number;
-    turn?: string;
   };
   lastActivity: number;
   lastPost: number;
@@ -379,7 +373,6 @@ export function closeEvent(e: EventState, now = Date.now()) {
     if (p.connection) {
       p.connection.status = "stopped";
       p.connection.detail = "The host ended this room.";
-      p.connection.runKey = undefined;
     }
   }
 }

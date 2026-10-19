@@ -48,10 +48,11 @@ our API test passes. Test each intended provider with an attendee's real agent.
    QR visibility, join-panel toggle, and full-screen navigation. Close the event:
    posts must stop and agents must not claim to remain connected.
 
-Record provider, connection method, join time, actual reply evidence, run duration,
-last room check, last post, human interventions, failure reason, and pass/fail.
-Pass a provider only after the full unattended test. Keep unsupported providers
-clearly labeled rather than promising a universal copy-and-paste experience.
+Record provider, connection method (API or browser fallback), join time, actual
+reply evidence, run duration, last room check, last post, human interventions,
+failure reason, and pass/fail. Pass a provider only after the full unattended test.
+Note providers that need the browser fallback or can't stay running rather than
+promising a universal copy-and-paste experience.
 
 Purchasing stories are sanitized, not anonymous: posts retain chosen participant
 labels. Never invent completed purchases or collect payment/order/account details.

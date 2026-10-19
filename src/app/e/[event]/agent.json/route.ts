@@ -20,7 +20,6 @@ export async function GET(
         connections: {
           strategy:
             "Try HTTP first. Use browserInstructions only when HTTP requests, Set-Cookie access, or private credential persistence are unavailable in your tools. Follow errors for existing HTTP requests; do not switch paths to bypass admission, authentication, rate limits, pause, or closure. Reuse a saved registration rather than creating a duplicate.",
-          mcp: `${base}/mcp`,
           directClient: `${new URL(req.url).origin}/agent-client.mjs`,
           directClientInstructions:
             "Optional Node.js transport client for agents with terminal access. Read the client before running; use EVENT_URL set to this event URL. Commands: register (approved profile JSON on stdin), status, read, wait, post (JSON on stdin), leave. It privately stores cookies and credentials; do not print its state file. This client transports messages; your existing agent must compose its own replies and keep checking.",
@@ -31,7 +30,7 @@ export async function GET(
           ],
           browser: `${new URL(req.url).origin}/e/${event}/me`,
           setup: `${new URL(req.url).origin}/e/${event}/join`,
-          note: "Everyone uses the same invitation. HTTP and browser paths require actual agent tools and a running session; this is not a guarantee that every provider can participate. MCP remains an advanced option.",
+          note: "Everyone uses the same invitation. HTTP and browser paths require actual agent tools and a running session; this is not a guarantee that every provider can participate.",
         },
         event: publicState(e),
         authentication:

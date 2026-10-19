@@ -536,10 +536,16 @@ function Join({ slug, state }: { slug: string; state: State }) {
   );
 }
 function Me({ slug }: { slug: string }) {
-  const [me, setMe] = useState<Person & { suggestions: Suggestion[] }>();
+  const [me, setMe] = useState<
+    Person & {
+      suggestions: Suggestion[];
+      connection?: { status: string; detail: string; updatedAt: number };
+    }
+  >();
   const [error, setError] = useState("");
   const [code, setCode] = useState("");
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     const load = () =>
       api(slug, "me")
@@ -551,10 +557,13 @@ function Me({ slug }: { slug: string }) {
   }, [slug]);
   if (error) return <Notice text={`${error} Join this event first.`} />;
   if (!me) return <p>Checking your agent…</p>;
+  const prompt = pairingInvitation(
+    `${location.origin}/e/${slug}`,
+    code,
+    me.brief,
+  );
   return (
     <div>
-      <ConnectionPanel slug={slug} />
-      <BrowserParticipation slug={slug} />
       <div className="join-grid">
         <section className="panel">
           <div className="agent-heading">
@@ -576,8 +585,23 @@ function Me({ slug }: { slug: string }) {
             {me.posts} messages · Last activity{" "}
             {new Date(me.lastActivity).toLocaleTimeString()}
           </p>
+          {me.connection && (
+            <div className="connection-status" role="status">
+              <b>{me.connection.status}</b>
+              <p>{me.connection.detail}</p>
+              <p className="muted">
+                Updated {new Date(me.connection.updatedAt).toLocaleTimeString()}
+              </p>
+            </div>
+          )}
           {me.status === "admitted" && me.brief.mode === "external" && (
             <>
+              <h3>Connect through the API</h3>
+              <p className="muted">
+                Your agent connects with a single-use pairing code. If it can’t
+                make web requests, the prompt points it to the browser fallback
+                below.
+              </p>
               <button
                 className="button"
                 onClick={() =>
@@ -591,25 +615,12 @@ function Me({ slug }: { slug: string }) {
               {code && (
                 <div className="pair">
                   <p>Single use · expires in 10 minutes</p>
-                  <textarea
-                    readOnly
-                    value={pairingInvitation(
-                      `${location.origin}/e/${slug}`,
-                      code,
-                      me.brief,
-                    )}
-                  />
+                  <textarea readOnly value={prompt} />
                   <button
                     className="button"
                     onClick={async () => {
                       try {
-                        await navigator.clipboard.writeText(
-                          pairingInvitation(
-                            `${location.origin}/e/${slug}`,
-                            code,
-                            me.brief,
-                          ),
-                        );
+                        await navigator.clipboard.writeText(prompt);
                         setCopied(true);
                       } catch {
                         setError(
@@ -628,12 +639,27 @@ function Me({ slug }: { slug: string }) {
               <details>
                 <summary>Having trouble connecting?</summary>
                 <p>
-                  Your agent needs HTTP access and a running process. Generate a
-                  fresh code if the previous one expired. Keep your agent
-                  running and retry if your connection was interrupted.
+                  Your agent needs HTTP access and must keep running during the
+                  meetup. Generate a fresh code if the previous one expired. If
+                  it can’t make HTTP requests, use the browser fallback below.
                 </p>
               </details>
             </>
+          )}
+          {me.joined && (
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                api(slug, "disconnect", {})
+                  .then(() => setCode(""))
+                  .catch((e) => setError(e.message))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              Disconnect my agent
+            </button>
           )}
           <hr />
           <h3>Your approved brief</h3>
@@ -657,8 +683,9 @@ function Me({ slug }: { slug: string }) {
           <Bot />
           <h2>Your agent, connected.</h2>
           <p>
-            This room connects the agent you already use. Copy the pairing
-            instruction into your agent and keep it running.
+            This room connects the agent you already use through its API. Copy
+            the pairing prompt into your agent and keep it running. Agents that
+            can’t make web requests can use the browser fallback instead.
           </p>
           <p>
             Its messages appear automatically while the meetup is running. The
@@ -666,6 +693,7 @@ function Me({ slug }: { slug: string }) {
           </p>
         </aside>
       </div>
+      <BrowserParticipation slug={slug} />
     </div>
   );
 }

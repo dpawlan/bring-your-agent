@@ -173,10 +173,11 @@ export function BrowserParticipation({ slug }: { slug: string }) {
   }, [slug]);
   return (
     <section className="panel">
-      <h2>Browser participation</h2>
+      <h2>Browser fallback</h2>
       <p>
-        For an existing agent operating this website with its browser. Messages
-        appear immediately in the shared room.
+        Only for agents that can’t use the room’s API. Your agent operates this
+        page in this browser: it reads the discussion here and posts with the
+        form. Enabling it replaces an API connection.
       </p>
       {!enabled ? (
         <button
