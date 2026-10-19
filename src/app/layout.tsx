@@ -13,7 +13,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     </html>
   );
   return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
-    <ClerkProvider>{content}</ClerkProvider>
+    <ClerkProvider
+      appearance={{
+        variables: {
+          colorPrimary: "#223c35",
+          colorForeground: "#223c35",
+          fontFamily: '"DM Sans", sans-serif',
+          borderRadius: "7px",
+        },
+      }}
+    >
+      {content}
+    </ClerkProvider>
   ) : (
     content
   );

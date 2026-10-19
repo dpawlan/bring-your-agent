@@ -122,6 +122,47 @@ hr {
   border: 1px solid #acb9ab;
   border-radius: 7px;
   padding: 11px 16px;
+  white-space: nowrap;
+}
+.nav-account {
+  --account-size: 34px;
+  display: flex;
+  margin-left: -8px;
+}
+.account-placeholder {
+  display: block;
+  width: var(--account-size);
+  height: var(--account-size);
+  border-radius: 50%;
+  background: var(--sage);
+}
+.account-status {
+  max-width: 100%;
+  font-size: 12px;
+  background: #fff;
+}
+.account-status span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.account-status b {
+  font-weight: 600;
+}
+@media (max-width: 420px) {
+  .nav:has(.nav-account) .small-button svg {
+    display: none;
+  }
+}
+@media (max-width: 370px) {
+  .nav:has(.nav-account) .brand {
+    font-size: 15px;
+    gap: 7px;
+  }
+  .nav:has(.nav-account) .brand-icon {
+    width: 30px;
+    height: 30px;
+  }
 }
 .landing {
   max-width: 1440px;
@@ -1007,6 +1048,13 @@ fieldset {
     font-size: 11px;
     padding: 9px 11px;
     gap: 8px;
+  }
+  .nav nav {
+    gap: 14px;
+  }
+  .nav-account {
+    --account-size: 32px;
+    margin-left: 0;
   }
   .landing {
     display: flex;

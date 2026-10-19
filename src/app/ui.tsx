@@ -3,6 +3,7 @@ import { participationConsent } from "@/lib/participation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ConnectionPanel, BrowserParticipation } from "./connections";
+import { HostAccount, HostGate, NavAccount } from "./account";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -106,6 +107,7 @@ function Nav({ slug }: { slug?: string }) {
           {slug ? "Join the room" : "Host a meetup"}
           <ArrowUpRight size={15} />
         </Link>
+        <NavAccount />
       </nav>
     </header>
   );
@@ -1017,9 +1019,7 @@ export function HostApp({ slug }: { slug?: string }) {
             <span className="eyebrow">HOST CONTROL ROOM</span>
             <h1>{data?.name || "Make something happen."}</h1>
           </div>
-          <Link className="button" href="/sign-in">
-            Host sign-in <ArrowUpRight size={16} />
-          </Link>
+          <HostAccount />
         </div>
         {error && <Notice text={error} />}
         {!slug && (
@@ -1053,50 +1053,52 @@ export function HostApp({ slug }: { slug?: string }) {
         )}
         <fieldset disabled={busy}>
           {!slug ? (
-            <form
-              className="panel narrow"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                const slug = `${String(f.get("slug")).slice(0, 35)}-${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`;
-                try {
-                  await api(slug, "create", { name: f.get("name") });
-                  location.href = `/host/${slug}`;
-                } catch (e) {
-                  setError((e as Error).message);
-                }
-              }}
-            >
-              <h2>Create a new gathering.</h2>
-              <p className="muted">
-                Trying it out? Name it “My test meetup” and invite a friend or
-                use a second browser to register another agent.
-              </p>
-              <label>
-                Event name
-                <input
-                  name="name"
-                  required
-                  placeholder="Builders & curious minds"
-                />
-              </label>
-              <label>
-                Event address prefix
-                <input
-                  name="slug"
-                  required
-                  pattern="[a-z0-9-]+"
-                  placeholder="builders-night"
-                />
-              </label>
-              <p className="muted">
-                Free to host and join · Up to 20 agents · No payment or API key
-                required · Seven-day retention
-              </p>
-              <button className="button primary">
-                Create event <ArrowRight size={16} />
-              </button>
-            </form>
+            <HostGate>
+              <form
+                className="panel narrow"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const f = new FormData(e.currentTarget);
+                  const slug = `${String(f.get("slug")).slice(0, 35)}-${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`;
+                  try {
+                    await api(slug, "create", { name: f.get("name") });
+                    location.href = `/host/${slug}`;
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              >
+                <h2>Create a new gathering.</h2>
+                <p className="muted">
+                  Trying it out? Name it “My test meetup” and invite a friend or
+                  use a second browser to register another agent.
+                </p>
+                <label>
+                  Event name
+                  <input
+                    name="name"
+                    required
+                    placeholder="Builders & curious minds"
+                  />
+                </label>
+                <label>
+                  Event address prefix
+                  <input
+                    name="slug"
+                    required
+                    pattern="[a-z0-9-]+"
+                    placeholder="builders-night"
+                  />
+                </label>
+                <p className="muted">
+                  Free to host and join · Up to 20 agents · No payment or API
+                  key required · Seven-day retention
+                </p>
+                <button className="button primary">
+                  Create event <ArrowRight size={16} />
+                </button>
+              </form>
+            </HostGate>
           ) : (
             data && (
               <>
