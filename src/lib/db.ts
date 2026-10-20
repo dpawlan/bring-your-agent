@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { storedEventSlug } from "./event-addresses";
 import { AppError, useLinkAdmission, type EventState } from "./domain";
 let client: ReturnType<typeof postgres> | undefined;
 export function db() {
@@ -10,6 +11,7 @@ export function db() {
   }));
 }
 export async function readEvent(slug: string) {
+  slug = storedEventSlug(slug);
   const rows =
     await db()`select data from meetup_events where slug=${slug} and (data->>'status' <> 'closed' or delete_at > now())`;
   if (!rows[0])
@@ -20,6 +22,7 @@ export async function mutate<T>(
   slug: string,
   fn: (e: EventState) => T,
 ): Promise<T> {
+  slug = storedEventSlug(slug);
   return (await db().begin(async (tx) => {
     const rows =
       await tx`select data from meetup_events where slug=${slug} and (data->>'status' <> 'closed' or delete_at > now()) for update`;

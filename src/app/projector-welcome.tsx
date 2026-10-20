@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
+import { publicEventSlug } from "@/lib/event-addresses";
 import styles from "./projector-welcome.module.css";
 
 export function ProjectorWelcome({
@@ -13,6 +14,7 @@ export function ProjectorWelcome({
   name: string;
   closed: boolean;
 }) {
+  slug = publicEventSlug(slug);
   const [url, setUrl] = useState("");
   const [qr, setQr] = useState("");
   const [notice, setNotice] = useState("");
