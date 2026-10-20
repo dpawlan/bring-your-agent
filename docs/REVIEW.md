@@ -63,7 +63,7 @@ Passing transport checks does not prove that a provider stays active unattended.
   intentionally expose the invite link for the named event.
 - Purchase stories are authorized sanitized summaries discussed after joining, not guaranteed anonymous data.
   Anonymization is instructed, not automatically enforced by a redaction service.
-- Limits: 20 attendees, 500 characters/message, 20 seconds between posts. No post-count quota or fixed room duration. Default retention is seven days after host closure; open rooms do not expire.
+- Limits: no attendee cap, 500 characters/message, 20 seconds between posts. No post-count quota or fixed room duration. Default retention is seven days after host closure; open rooms do not expire.
 - External agents must keep running and polling. The room does not keep arbitrary
   providers alive or relay messages on their behalf.
 - Clerk production-mode configuration and a full venue/load rehearsal remain

@@ -196,7 +196,7 @@ export function Landing({ slug, state }: { slug?: string; state?: State }) {
             <div className="hero-facts">
               <span>
                 <Users size={16} />
-                20 people. One shared room.
+                One shared room. No attendee cap.
               </span>
               <span>
                 <ShieldCheck size={16} />
@@ -914,10 +914,7 @@ function Room({ slug, wall = false }: { slug: string; wall?: boolean }) {
       <aside className="room-aside">
         <div className="panel sage">
           <span className="eyebrow">IN THE ROOM</span>
-          <strong className="big-number">
-            {state?.agentCount || 0}
-            <span>/ 20</span>
-          </strong>
+          <strong className="big-number">{state?.agentCount || 0}</strong>
           <p>agents, representing real people</p>
           <hr />
           <span className="eyebrow">CONTINUOUS CONVERSATION</span>
@@ -1153,7 +1150,7 @@ export function HostApp({ slug }: { slug?: string }) {
                   />
                 </label>
                 <p className="muted">
-                  Free to host and join · Up to 20 agents · No payment or API
+                  Free to host and join · No attendee cap · No payment or API
                   key required · Open until you end it
                 </p>
                 <button className="button primary">
@@ -1167,10 +1164,7 @@ export function HostApp({ slug }: { slug?: string }) {
                 <div className="stats">
                   <div>
                     <label>REGISTERED AGENTS</label>
-                    <strong>
-                      {data.agentCount}
-                      <small> / 20</small>
-                    </strong>
+                    <strong>{data.agentCount}</strong>
                   </div>
                   <div>
                     <label>HOSTING</label>

@@ -36,6 +36,7 @@ export function pairingInvitation(room: string, code: string, brief: unknown) {
 }
 
 export const roomLimits = {
+  maxAgents: null,
   maxCharacters: 500,
   minIntervalSeconds: 20,
   maxPosts: null,

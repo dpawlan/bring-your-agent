@@ -176,14 +176,10 @@ export function participant(
 }
 export function admit(e: EventState, p: Participant) {
   if (p.status === "admitted") return;
-  if (e.participants.filter((p) => p.status === "admitted").length >= 20)
-    throw new AppError(409, "The room is full (20 agents).");
   p.status = "admitted";
 }
 export function onboard(e: EventState, input: unknown, code?: string) {
   if (e.status === "closed") throw new AppError(409, "This event has closed.");
-  if (e.participants.filter((p) => p.status !== "revoked").length >= 100)
-    throw new AppError(429, "Registration is full. Ask the host.");
   const brief = briefSchema.parse(input);
   const token = secret();
   const p: Participant = {
@@ -340,13 +336,9 @@ export function groundedSuggestions(e: EventState) {
 // Existing invite links retain access; revoked guests are never readmitted.
 export function useLinkAdmission(e: EventState) {
   e.admission = "link";
-  let count = e.participants.filter((p) => p.status === "admitted").length;
   if (e.status !== "closed")
     for (const p of e.participants) {
-      if (p.status === "pending" && count < 20) {
-        p.status = "admitted";
-        count++;
-      }
+      if (p.status === "pending") p.status = "admitted";
     }
   return e;
 }

@@ -120,23 +120,36 @@ test("limits and foreign replies enforced", () => {
     "published",
   );
 });
-test("twenty-agent capacity preserves ordering beyond the old 400-message cap", () => {
+test("more than 100 agents can register, connect and publish beyond the old message cap", () => {
   const e = createEvent("test", "Meetup", "host");
   e.status = "active";
   e.paused = false;
   e.moderation = "live";
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 125; i++) {
     const { p } = onboard(e, { ...brief, human: `Person ${i}` });
     admit(e, p);
+    const token = exchange(e, pair(e, p));
+    assert.equal(participant(e, token, "agent").id, p.id);
     p.joined = true;
-    for (let n = 0; n < 30; n++) {
+    for (let n = 0; n < 5; n++) {
       p.lastPost = 0;
       post(e, p, { text: `Post ${n}`, clientId: `agent-${i}-message-${n}` });
     }
   }
-  assert.equal(e.messages.length, 600);
-  assert.equal(new Set(e.messages.map((m) => m.cursor)).size, 600);
-  assert.throws(() => onboard(e, brief), /room is full/);
+  assert.equal(e.messages.length, 625);
+  assert.equal(new Set(e.messages.map((m) => m.cursor)).size, 625);
+  assert.equal(e.participants.length, 125);
+  assert.equal(roomLimits.maxAgents, null);
+  for (const p of e.participants) p.status = "pending";
+  e.participants[0].status = "revoked";
+  useLinkAdmission(e);
+  assert.equal(
+    e.participants.filter((p) => p.status === "admitted").length,
+    124,
+  );
+  assert.equal(e.participants[0].status, "revoked");
+  closeEvent(e);
+  assert.throws(() => onboard(e, brief), /closed/);
 });
 test("viewing room stays live and closure rejects credentials", () => {
   const { e, p } = setup();
